@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tank Gauges</title>
+<meta name="theme-color" content="#04080f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gauges">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preload" href="fonts/Orbitron.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="hdr">
+    <div class="topline"><span></span></div>
+    <h1>TANK GAUGES</h1>
+    <div id="subtitle" class="sub">—</div>
+  </header>
+
+  <nav class="datenav" aria-label="Date">
+    <button id="prev" class="navbtn" aria-label="Previous day">&#9664;</button>
+    <label class="datebox">
+      <span id="weekday" class="weekday">—</span>
+      <span id="datelong" class="datelong">—</span>
+      <input id="picker" type="date" aria-label="Pick a date">
+    </label>
+    <button id="next" class="navbtn" aria-label="Next day">&#9654;</button>
+    <button id="todayBtn" class="chip today">Today</button>
+  </nav>
+  <div class="subnav">
+    <span class="legend"><span class="lg-oil"><i></i>OIL</span><span class="lg-wat"><i></i>WATER</span></span>
+    <span id="status" class="status">Loading…</span>
+  </div>
+  <div id="localBar" class="localbar" hidden>
+    <span id="localText"></span>
+    <button id="copyLocal" class="chip warn">Copy for Kal</button>
+  </div>
+
+  <main id="view"></main>
+
+  <footer class="foot">SCALE 0–20 FT • FILL HEIGHT = GAUGED LEVEL</footer>
+</div>
+
+<div class="bottombar">
+  <div class="seg" role="tablist">
+    <button id="tabTanks" class="on" role="tab">Tanks</button>
+    <button id="tabList" role="tab">List</button>
+  </div>
+  <button id="shareBtn" class="iconbtn" aria-label="Share today's dashboard">Share</button>
+  <button id="addBtn" class="iconbtn add" aria-label="Add or fix a reading">＋</button>
+</div>
+
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-label="Add or fix reading">
+    <h2>Add / fix reading</h2>
+    <p class="hint">Saved on this phone only (marked <b class="lbadge">LOCAL</b>) until it's in the shared file.</p>
+    <div class="row"><label>Date</label><input id="fDate" type="date"></div>
+    <div class="row"><label>Lease</label><select id="fLease"></select></div>
+    <div class="row"><label>Location</label><select id="fLoc"></select></div>
+    <div class="row" id="fLocOtherRow" hidden><label>New loc</label><input id="fLocOther" placeholder="e.g. 3-20" autocapitalize="characters"></div>
+    <div class="row"><label>Tank</label>
+      <div class="seg small" id="fTank"><button data-t="oil" class="on oil">Oil</button><button data-t="water" class="water">Water</button></div>
+    </div>
+    <div class="row"><label>Level</label>
+      <select id="fFt" aria-label="feet"></select><span class="unit">ft</span>
+      <select id="fIn" aria-label="inches"></select><span class="unit">in</span>
+    </div>
+    <div class="btns">
+      <button id="fCancel" class="chip">Cancel</button>
+      <button id="fDelete" class="chip warn" hidden>Remove local edit</button>
+      <button id="fSave" class="chip primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="shot" class="sheet" hidden>
+  <div class="sheet-card shot-card">
+    <img id="shotImg" alt="Dashboard image">
+    <p class="hint">Press and hold the image to save or share it.</p>
+    <div class="btns"><a id="shotDl" class="chip" download>Download</a><button id="shotClose" class="chip primary">Close</button></div>
+  </div>
+</div>
+<div id="toast" class="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
