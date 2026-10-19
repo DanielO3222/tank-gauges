@@ -180,3 +180,7 @@ h1{font-size:22px;margin:7px 0 1px;letter-spacing:.5px}
 .seg button,.iconbtn{height:48px}
 body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
 @media (max-width:380px){:root{--tankW:40px}.val{font-size:14px}.datebox{gap:5px}.weekday{font-size:12.5px}.datelong{font-size:12px}.chip.today{padding:0 9px}}
+
+.statwrap{display:flex;align-items:center;gap:8px}
+.chip.refresh{padding:4px 10px;font-size:13px;line-height:1.2}
+.chip.refresh.spin{opacity:.6}

@@ -326,7 +326,20 @@ function rr(x,a,b,w,h,r){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+h,
 const c=loadJSON(K_CACHE); if(c){ db=c.db; fetchedAt=c.fetchedAt; }
 render(true);
 refresh();
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+let swReg=null;
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(r=>{swReg=r;}).catch(()=>{});
+async function manualRefresh(){
+  const b=$("#refreshBtn"); b.disabled=true; b.classList.add("spin");
+  try{ if(swReg) swReg.update().catch(()=>{}); }catch(e){}
+  await refresh(true);
+  b.disabled=false; b.classList.remove("spin");
+  toast(online ? "Up to date" : "Offline — showing saved data");
+}
+$("#refreshBtn").onclick=manualRefresh;
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
+window.addEventListener("pageshow",()=>refresh());
+window.addEventListener("online",()=>refresh());
+setInterval(()=>{ if(document.visibilityState==="visible") refresh(); },60000);
 if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 window.TG={ get db(){return db;}, go, dayText }; // for testing
 })();
