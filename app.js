@@ -336,6 +336,8 @@ async function manualRefresh(){
   toast(online ? "Up to date" : "Offline — showing saved data");
 }
 $("#refreshBtn").onclick=manualRefresh;
+if("serviceWorker" in navigator){ let hadCtl=!!navigator.serviceWorker.controller, reloaded=false;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(hadCtl && !reloaded){ reloaded=true; location.reload(); } }); }
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
 window.addEventListener("pageshow",()=>refresh());
 window.addEventListener("online",()=>refresh());
