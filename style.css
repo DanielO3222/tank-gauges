@@ -209,3 +209,5 @@ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
 .semi.empty .tankline .shell{stroke-dasharray:4 3;filter:none;stroke-opacity:.6}
 .statwrap{gap:5px}.statwrap .chip.refresh{padding:4px 8px}
 .hdr{position:relative}.chip.hdrlink{position:absolute;right:4px;top:10px;padding:2px 8px;font-size:11px;line-height:1.3}
+.chip.hdrlink{top:9px;right:2px;padding:4px 10px;font-size:14px;font-weight:800;line-height:1.2;letter-spacing:.3px;color:#04121f;background:linear-gradient(180deg,#7fe6ff,#28b4e8);border-color:#bff0ff;box-shadow:0 0 10px rgba(90,220,255,.75),0 0 2px #fff inset}
+.chip.hdrlink:active{filter:brightness(.85)}
