@@ -29,10 +29,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PATH = os.path.normpath(os.path.join(HERE, "..", "data", "gauges.json"))
 DEFAULT_ROUTE = ["1-20", "14-20", "16-20", "17-20", "9-20", "11-20", "6-20", "7-20"]
 TANKS = ("oil", "water")
-# Water haulers (semis): id -> display name, capacity in bbl. Stored per day on the
-# lease group as "hauls": {"b-fed": 120, "timbro-01": 185}; names/caps in top-level "haulers".
-HAULERS = [{"id": "b-fed", "name": "B-Fed", "cap": 185},
-           {"id": "timbro-01", "name": "Timbro 01", "cap": 185}]
+# Water haulers (semis): daily total bbl hauled (all tickets). Stored per day on the
+# lease group as "hauls": {"b-fed": 1250, "timbro-01": 840}; names in top-level "haulers".
+HAULERS = [{"id": "b-fed", "name": "B-Fed"},
+           {"id": "timbro-01", "name": "Timbro 01"}]
 
 
 def hauler_id(name):
@@ -49,9 +49,8 @@ def set_haul(db, date, lease, hauler, bbl, force=False):
     datetime.date.fromisoformat(date)
     hid = hauler_id(hauler)
     db.setdefault("haulers", [dict(h) for h in HAULERS])
-    cap = next((h["cap"] for h in db["haulers"] if h["id"] == hid), 185)
-    if bbl < 0 or (bbl > cap and not force):
-        raise ValueError(f"barrels must be 0-{cap}, got {bbl} (use --force to override)")
+    if bbl < 0:
+        raise ValueError(f"barrels must be 0 or more, got {bbl}")
     lid = ensure_lease(db, lease)
     groups = db["days"].setdefault(date, [])
     g = next((g for g in groups if g["lease"] == lid), None)
@@ -192,6 +191,6 @@ def day_table(db, date):
             out.append(f"  {r['loc']:<8} oil {fmt(r.get('oil')):<8} water {fmt(r.get('water'))}")
         names = {h["id"]: h for h in db.get("haulers", HAULERS)}
         for hid, v in g.get("hauls", {}).items():
-            h = names.get(hid, {"name": hid, "cap": 185})
-            out.append(f"  haul {h['name']:<10} {v} / {h['cap']} bbl")
+            h = names.get(hid, {"name": hid})
+            out.append(f"  haul {h['name']:<10} {v:,} bbl")
     return "\n".join(out) or f"(no readings for {date})"

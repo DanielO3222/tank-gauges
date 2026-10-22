@@ -110,7 +110,8 @@ function gaugedDays(){
 }
 
 /* ---------- water hauled (semis) ---------- */
-const DEF_HAULERS=[{id:"b-fed",name:"B-Fed",cap:185},{id:"timbro-01",name:"Timbro 01",cap:185}];
+const DEF_HAULERS=[{id:"b-fed",name:"B-Fed"},{id:"timbro-01",name:"Timbro 01"}];
+function bbl(n){ return Math.round(n).toLocaleString("en-US"); }
 function haulers(){ return (db && db.haulers && db.haulers.length) ? db.haulers : DEF_HAULERS; }
 function haulsFor(date){ const o={}; for(const g of (db.days[date]||[])) if(g.hauls) Object.assign(o,g.hauls); return o; }
 const TK={x:60,y:12,w:192,h:28};
@@ -149,9 +150,9 @@ function semiSvg(id,pct,has){
 function haulHtml(){
   const hs=haulsFor(cur);
   return `<div class="hauls-h">WATER HAULED</div><div class="hauls">`+haulers().map(h=>{
-    const v=hs[h.id], has=typeof v==="number", cap=h.cap||185, pct=has?Math.max(0,Math.min(100,v/cap*100)):0;
+    const v=hs[h.id], has=typeof v==="number", pct=has?100:0;
     return `<section class="card haul"><span class="accent"></span><div class="hh"><span class="hn">${esc(h.name.toUpperCase())}</span>
-      <span class="hv${has?"":" none"}">${has?`${v} / ${cap} bbl`:`— / ${cap} bbl`}</span></div>${semiSvg(h.id,pct,has)}</section>`;
+      <span class="hv${has?"":" none"}">${has?`${bbl(v)} bbl`:"— bbl"}</span></div>${semiSvg(h.id,pct,has)}</section>`;
   }).join("")+`</div>`;
 }
 
@@ -225,14 +226,14 @@ function renderList(groups){
       h+=`<tr class="r"><td class="l">${esc(r.loc)}</td>${c(r.oil,"o","oil")}${c(r.water,"w","water")}</tr>`;
     }
   }
-  h+=`<tr><td class="lh" colspan="3">WATER HAULED</td></tr>`+haulLines().map(([hl,v])=>`<tr class="r"><td class="l">${esc(hl.name)}</td><td class="w" colspan="2">${typeof v==="number"?`${v} / ${hl.cap||185} bbl`:"—"}</td></tr>`).join("");
+  h+=`<tr><td class="lh" colspan="3">WATER HAULED</td></tr>`+haulLines().map(([hl,v])=>`<tr class="r"><td class="l">${esc(hl.name)}</td><td class="w" colspan="2">${typeof v==="number"?`${bbl(v)} bbl`:"—"}</td></tr>`).join("");
   return h+`</tbody></table><div class="listtools"><button class="chip" id="copyDay">Copy as text</button></div>`;
 }
 function dayText(){
   const groups=dayGroups(cur), d=parseYmd(cur);
   let s=`Tank gauges — ${WD[d.getDay()]} ${longDate(cur)}\n`;
   for(const g of groups){ s+=`${leaseName(g.lease)}\n`; for(const r of g.rows) s+=`${r.loc.padEnd(7)} oil ${fmt(r.oil&&r.oil.v).padEnd(7)} water ${fmt(r.water&&r.water.v)}\n`; }
-  const hl=haulLines().filter(([,v])=>typeof v==="number"); if(hl.length){ s+="Water hauled\n"; for(const [h,v] of hl) s+=`${h.name.padEnd(10)} ${v} / ${h.cap||185} bbl\n`; }
+  const hl=haulLines().filter(([,v])=>typeof v==="number"); if(hl.length){ s+="Water hauled\n"; for(const [h,v] of hl) s+=`${h.name.padEnd(10)} ${bbl(v)} bbl\n`; }
   return s;
 }
 async function copy(text,msg){

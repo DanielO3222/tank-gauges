@@ -5,7 +5,7 @@ Examples:
   add_reading.py --loc 14-20 --tank oil --ft 8 --in 11                 # today, default lease
   add_reading.py --date 2026-10-15 --loc 9-20 --tank oil --ft 1 --in 11
   add_reading.py --batch "14-20 oil 8 11; 14-20 water 6 1; 16-20 oil 13 6"
-  add_reading.py --batch "B-Fed haul 120; Timbro 01 haul 185"         # water hauled, bbl of 185
+  add_reading.py --batch "B-Fed haul 1250; Timbro 01 haul 840"        # daily total bbl hauled
   add_reading.py --delete-haul "B-Fed" --date 2026-10-22
   add_reading.py --lease "Speed Goat" --loc 3-20 --tank water --ft 4 --in 2
   add_reading.py --delete --date 2026-10-15 --loc 9-20 --tank oil
@@ -23,9 +23,9 @@ def parse_batch(s):
         part = part.strip()
         if not part:
             continue
-        h = re.fullmatch(r"(b\s*-?\s*fed|timbro(?:\s*-?\s*0?1)?)\s+haul(?:ed|s)?\s+(\d+)(?:\s*(?:bbls?|barrels?))?", part, re.I)
+        h = re.fullmatch(r"(b\s*-?\s*fed|timbro(?:\s*-?\s*0?1)?)\s+haul(?:ed|s)?\s+(\d[\d,]*)(?:\s*(?:bbls?|barrels?))?", part, re.I)
         if h:
-            items.append(("haul", gl.hauler_id(h.group(1)), int(h.group(2)), 0))
+            items.append(("haul", gl.hauler_id(h.group(1)), int(h.group(2).replace(",", "")), 0))
             continue
         m = re.fullmatch(r"(\S+)\s+(oil|water)\s+(\d+)(?:\s*(?:'|ft|-|\s)\s*(\d+)\"?)?", part, re.I)
         if not m:
