@@ -224,11 +224,12 @@ function renderList(groups){
   h+=`<tr><td class="lh" colspan="3">WATER HAULED</td></tr>`+haulLines().map(([hl,v])=>`<tr class="r"><td class="l">${esc(hl.name)}</td><td class="w" colspan="2">${typeof v==="number"?`${bbl(v)} bbl`:"—"}</td></tr>`).join("");
   return h+`</tbody></table><div class="listtools"><button class="chip" id="copyDay">Copy as text</button></div>`;
 }
+const cf=v=>fmt(v).replace(/' /g,"'");
 function dayText(){
   const groups=dayGroups(cur), d=parseYmd(cur);
   let s=`Tank gauges — ${WD[d.getDay()]} ${longDate(cur)}\n`;
-  for(const g of groups){ s+=`${leaseName(g.lease)}\n`; for(const r of g.rows) s+=`${r.loc.padEnd(7)} oil ${fmt(r.oil&&r.oil.v).padEnd(7)} water ${fmt(r.water&&r.water.v)}\n`; }
-  const hl=haulLines().filter(([,v])=>typeof v==="number"); if(hl.length){ s+="Water hauled\n"; for(const [h,v] of hl) s+=`${h.name.padEnd(10)} ${bbl(v)} bbl\n`; }
+  for(const g of groups){ s+=`${leaseName(g.lease)}\n`; for(const r of g.rows) s+=`${r.loc} oil ${cf(r.oil&&r.oil.v)} water ${cf(r.water&&r.water.v)}\n`; }
+  const hl=haulLines().filter(([,v])=>typeof v==="number"); if(hl.length){ s+="Water hauled\n"; for(const [h,v] of hl) s+=`${h.name} ${bbl(v)} bbl\n`; }
   return s;
 }
 async function copy(text,msg){
