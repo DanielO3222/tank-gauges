@@ -110,7 +110,7 @@ function gaugedDays(){
 }
 
 /* ---------- water hauled (semis) ---------- */
-const DEF_HAULERS=[{id:"b-fed",name:"B-Fed"},{id:"timbro-01",name:"Timbro 01"}];
+const DEF_HAULERS=[{id:"b-fed",name:"B-Fed"},{id:"timbro-01",name:"Timbro 1931"}];
 function bbl(n){ return Math.round(n).toLocaleString("en-US"); }
 function haulers(){ return (db && db.haulers && db.haulers.length) ? db.haulers : DEF_HAULERS; }
 function haulsFor(date){ const o={}; for(const g of (db.days[date]||[])) if(g.hauls) Object.assign(o,g.hauls); return o; }

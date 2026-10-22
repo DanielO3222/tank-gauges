@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-10-22T07:45:47-06:00",
+ "updated": "2026-10-22T08:04:47-06:00",
  "max_ft": 20,
  "default_lease": "bringelson",
  "leases": {
@@ -414,8 +414,21 @@
        "in": 11
       }
      }
-    ]
+    ],
+    "hauls": {
+     "timbro-01": 185
+    }
    }
   ]
- }
+ },
+ "haulers": [
+  {
+   "id": "b-fed",
+   "name": "B-Fed"
+  },
+  {
+   "id": "timbro-01",
+   "name": "Timbro 1931"
+  }
+ ]
 }

@@ -32,7 +32,7 @@ TANKS = ("oil", "water")
 # Water haulers (semis): daily total bbl hauled (all tickets). Stored per day on the
 # lease group as "hauls": {"b-fed": 1250, "timbro-01": 840}; names in top-level "haulers".
 HAULERS = [{"id": "b-fed", "name": "B-Fed"},
-           {"id": "timbro-01", "name": "Timbro 01"}]
+           {"id": "timbro-01", "name": "Timbro 1931"}]
 
 
 def hauler_id(name):
@@ -41,7 +41,7 @@ def hauler_id(name):
         return "b-fed"
     if n.startswith("timbro"):
         return "timbro-01"
-    raise ValueError(f"unknown hauler {name!r} (want B-Fed or Timbro 01)")
+    raise ValueError(f"unknown hauler {name!r} (want B-Fed or Timbro 1931)")
 
 
 def set_haul(db, date, lease, hauler, bbl, force=False):

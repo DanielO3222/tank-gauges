@@ -23,7 +23,7 @@ def parse_batch(s):
         part = part.strip()
         if not part:
             continue
-        h = re.fullmatch(r"(b\s*-?\s*fed|timbro(?:\s*-?\s*0?1)?)\s+haul(?:ed|s)?\s+(\d[\d,]*)(?:\s*(?:bbls?|barrels?))?", part, re.I)
+        h = re.fullmatch(r"(b\s*-?\s*fed|timbro(?:\s*-?\s*(?:0?1|1931))?)\s+haul(?:ed|s)?\s+(\d[\d,]*)(?:\s*(?:bbls?|barrels?))?", part, re.I)
         if h:
             items.append(("haul", gl.hauler_id(h.group(1)), int(h.group(2).replace(",", "")), 0))
             continue
