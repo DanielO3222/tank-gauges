@@ -320,7 +320,8 @@ $("#shotClose").onclick=()=>$("#shot").hidden=true;
 async function drawPng(groups){
   await document.fonts.load('900 40px Orbitron'); await document.fonts.load('700 24px RC');
   const rows=[]; for(const g of groups){ for(const r of g.rows) rows.push({...r,lease:g.lease}); }
-  const W=1080, top=330, rowh=370, nrows=Math.ceil(rows.length/2), H=Math.max(1920, top+nrows*rowh+110);
+  const TW=128, TH=240, rowh=TH+186, haulTop=0, haulBlock=260;
+  const W=1080, top=330, nrows=Math.ceil(rows.length/2), H=Math.max(1920, top+nrows*rowh+haulBlock+110);
   const c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
   const OIL="#ffb828", WAT="#28c8ff", CY="#5adcff";
   const bg=x.createLinearGradient(0,0,0,H); bg.addColorStop(0,"#040a1c"); bg.addColorStop(.5,"#08122a"); bg.addColorStop(1,"#0a0c18");
@@ -337,7 +338,7 @@ async function drawPng(groups){
   x.font="700 24px RC"; x.textAlign="left";
   [[OIL,"OIL",W/2-210],[WAT,"WATER",W/2+30]].forEach(([col,l,lx])=>{ glow(col,8); x.fillStyle=col; rr(x,lx,280,30,26,5); x.fill(); x.fillText(l,lx+42,302); });
   noglow();
-  const cw=500,gap=(W-2*cw)/3,TW=128,TH=176,mf=maxFt();
+  const cw=500,gap=(W-2*cw)/3,mf=maxFt();
   rows.forEach((r,i)=>{
     const cx=gap+(i%2)*(cw+gap), cy=top+Math.floor(i/2)*rowh, x2=cx+cw, y2=cy+rowh-30, k=22;
     x.strokeStyle="#288cc8"; x.lineWidth=2; glow("#288cc8",8); x.beginPath();
@@ -345,7 +346,7 @@ async function drawPng(groups){
     x.fillStyle=CY; glow(CY,8); x.fillRect(cx+k,cy-2,90,5); noglow();
     x.textAlign="center"; x.font="700 38px Orbitron"; x.fillStyle="#e1f5ff"; x.fillText(r.loc,cx+cw/2,cy+54);
     [["oil",cx+70,OIL],["water",cx+cw-70-TW,WAT]].forEach(([t,tx,col])=>{
-      const ty=cy+104, cell=r[t], v=cell&&cell.v;
+      const ty=cy+100, cell=r[t], v=cell&&cell.v;
       x.font="700 24px RC"; x.fillStyle=col; x.fillText(t.toUpperCase(),tx+TW/2,ty-14);
       if(v){ const lv=Math.min(1,inches(v)/(mf*12)), fy=ty+TH-(TH-6)*lv;
         x.save(); rr(x,tx+3,ty+3,TW-6,TH-6,14); x.clip();
@@ -360,9 +361,33 @@ async function drawPng(groups){
       x.fillText(fmt(v)+(cell&&cell.local?"*":""),tx+TW/2,ty+TH+52); noglow();
     });
   });
+  // water hauled: two semis (same SVG as the app, rasterized)
+  const hy=top+nrows*rowh, hs=haulsFor(cur), hl=haulers();
+  x.textAlign="left"; x.font="700 26px Orbitron"; x.fillStyle="#a0e6ff"; glow("rgba(90,220,255,.4)",6); x.fillText("WATER HAULED",gap,hy+14); noglow();
+  for(let i=0;i<hl.length&&i<2;i++){
+    const h=hl[i], v=hs[h.id], has=typeof v==="number", cx=gap+i*(cw+gap), cy=hy+36, x2=cx+cw, y2=cy+196, k=22;
+    x.strokeStyle="#288cc8"; x.lineWidth=2; glow("#288cc8",8); x.beginPath();
+    x.moveTo(cx+k,cy);x.lineTo(x2,cy);x.lineTo(x2,y2-k);x.lineTo(x2-k,y2);x.lineTo(cx,y2);x.lineTo(cx,cy+k);x.closePath(); x.stroke();
+    x.fillStyle=CY; glow(CY,8); x.fillRect(cx+k,cy-2,90,5); noglow();
+    x.font="700 30px Orbitron"; x.textAlign="left"; x.fillStyle="#e1f5ff"; x.fillText(h.name.toUpperCase(),cx+26,cy+46);
+    x.textAlign="right"; x.fillStyle=has?WAT:"#4a6a80"; glow(WAT,has?10:0); x.fillText(has?`${bbl(v)} bbl`:"— bbl",x2-22,cy+46); noglow();
+    try{ const img=await semiImage(h.id,has?100:0,has,940,224); x.drawImage(img,cx+15,cy+66,470,112); }catch(e){}
+  }
   x.fillStyle="#2878aa"; x.fillRect(60,H-76,W-120,2); x.font="400 22px RC"; x.fillStyle="#78b4d2"; x.textAlign="center";
   x.fillText("SCALE 0–"+mf+" FT  •  FILL HEIGHT = GAUGED LEVEL"+(rows.some(r=>(r.oil&&r.oil.local)||(r.water&&r.water.local))?"  •  * = LOCAL EDIT":""),W/2,H-38);
   return new Promise(res=>c.toBlob(res,"image/png"));
+}
+const SEMI_CSS=`.truck,.trailer{fill:rgba(90,220,255,.06);stroke:#5aa8d0;stroke-width:1.1;stroke-linejoin:round;stroke-linecap:round}
+.truck .glass{fill:rgba(90,220,255,.16)}.trailer .rail{fill:none}.trailer .valve{stroke:#28c8ff}.trailer .sight{stroke:#28c8ff;stroke-width:1.4}
+.ground{stroke:#1d4a6a;stroke-width:1;stroke-dasharray:3 3}.tankline{fill:none;stroke:#28c8ff;stroke-width:1}.tankline line{stroke-opacity:.35}
+.tankline .shell{stroke-width:1.7;fill:rgba(0,0,0,.25)}.tankline rect:not(.shell){fill:rgba(40,200,255,.2)}
+.wheels .tire{fill:#07101c;stroke:#5aa8d0;stroke-width:1.3}.wheels .hub{fill:#5aa8d0;stroke:none}
+.surf{fill:#c8f2ff}.shine{fill:rgba(255,255,255,.18)}.empty .tankline .shell{stroke-dasharray:4 3;stroke-opacity:.6}`;
+function semiImage(id,pct,has,w,h){
+  const svg=semiSvg(id,pct,has).replace("<svg ",`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" `)
+    .replace("<defs>",`<style>${SEMI_CSS}</style><defs>`).replace(/data-y="([\d.]+)" style="[^"]*"/,(m,y)=>`transform="translate(0 ${y})"`);
+  return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej;
+    im.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg); });
 }
 function rr(x,a,b,w,h,r){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+h,r); x.arcTo(a+w,b+h,a,b+h,r); x.arcTo(a,b+h,a,b,r); x.arcTo(a,b,a+w,b,r); x.closePath(); }
 
@@ -387,5 +412,5 @@ window.addEventListener("pageshow",()=>refresh());
 window.addEventListener("online",()=>refresh());
 setInterval(()=>{ if(document.visibilityState==="visible") refresh(); },60000);
 if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
-window.TG={ get db(){return db;}, go, dayText }; // for testing
+window.TG={ get db(){return db;}, go, dayText, png:()=>drawPng(dayGroups(cur)) }; // for testing
 })();
