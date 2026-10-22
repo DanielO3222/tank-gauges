@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Compressor Log</title>
+<meta name="theme-color" content="#04080f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Compressors">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="preload" href="../fonts/Orbitron.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="hdr">
+    <div class="topline"><span></span></div>
+    <a class="chip link" href="../">&#8249; Tanks</a>
+    <h1>COMPRESSORS</h1>
+    <div id="subtitle" class="sub">—</div>
+  </header>
+  <nav class="datenav" aria-label="Date">
+    <button id="prev" class="navbtn" aria-label="Previous day">&#9664;</button>
+    <label class="datebox">
+      <span id="weekday" class="weekday">—</span>
+      <span id="datelong" class="datelong">—</span>
+      <input id="picker" type="date" aria-label="Pick a date">
+    </label>
+    <button id="next" class="navbtn" aria-label="Next day">&#9654;</button>
+    <button id="todayBtn" class="chip today">Today</button>
+  </nav>
+  <div class="subnav">
+    <span class="legend"><span class="lg-suc"><i></i>SUCTION</span><span class="lg-rpm"><i></i>RPM</span></span>
+    <span class="statwrap"><span id="status" class="status">Loading…</span>
+      <button id="refreshBtn" class="chip sm" aria-label="Check for updates">&#8635; Refresh</button>
+      <button id="copyBtn" class="chip sm" aria-label="Copy readings">Copy</button></span>
+  </div>
+  <main id="view"></main>
+</div>
+<div id="toast" class="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

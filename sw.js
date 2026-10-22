@@ -1,5 +1,5 @@
 /* Tank Gauges service worker: app shell cache-first, data file network-first. */
-const VERSION = "tg-v1.8.5";
+const VERSION = "tg-v1.8.6";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest",
   "fonts/Orbitron.ttf", "fonts/RobotoCondensed.ttf",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "data/gauges.json"];
@@ -13,6 +13,7 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request; if (req.method !== "GET") return;
   const url = new URL(req.url);
+  if (url.pathname.includes("/compressors/")) return;       // compressor app has its own service worker
   if (url.pathname.endsWith("/data/gauges.json")) {        // network-first
     e.respondWith(fetch(req).then(r => {
       if (r.ok) { const cp = r.clone(); caches.open(VERSION).then(c => c.put(url.origin + url.pathname, cp)); }

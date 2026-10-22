@@ -1,0 +1,18 @@
+{
+ "schema": 1,
+ "updated": "2026-10-22T08:40:00-06:00",
+ "compressors": [
+  {"id": "speed-goat", "name": "Speed Goat"},
+  {"id": "fiscus", "name": "Fiscus"},
+  {"id": "timbro-01", "name": "Timbro 01"},
+  {"id": "timbro-1931", "name": "Timbro 1931"},
+  {"id": "b-fed", "name": "B-Fed"},
+  {"id": "bringelson-5-20", "name": "Bringelson 5-20"},
+  {"id": "peanut", "name": "Peanut"}
+ ],
+ "fields": {
+  "suction": {"label": "Suction", "unit": "psi", "max": 100},
+  "rpm": {"label": "RPM", "unit": "rpm", "max": 1800}
+ },
+ "days": {}
+}

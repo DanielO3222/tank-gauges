@@ -208,3 +208,4 @@ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
 .semi .surf{fill:#c8f2ff}.semi .shine{fill:rgba(255,255,255,.18)}
 .semi.empty .tankline .shell{stroke-dasharray:4 3;filter:none;stroke-opacity:.6}
 .statwrap{gap:5px}.statwrap .chip.refresh{padding:4px 8px}
+.hdr{position:relative}.chip.hdrlink{position:absolute;right:4px;top:10px;padding:2px 8px;font-size:11px;line-height:1.3}
