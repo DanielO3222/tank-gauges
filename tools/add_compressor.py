@@ -35,7 +35,7 @@ MATCH = [
     ("shull-35", lambda n: n.startswith("shul") and n.endswith("35")),
     ("shull-25", lambda n: n.startswith("shul") and n.endswith("25")),
     ("martin", lambda n: n.startswith("martin")),
-    ("caster", lambda n: n.startswith("caster")),
+    ("caster", lambda n: n.startswith("caster") or n.startswith("castor")),
 ]
 
 
