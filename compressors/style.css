@@ -95,3 +95,23 @@ h1{font-family:Orbitron;font-weight:900;font-size:22px;letter-spacing:.5px;margi
 .g .trk,.g .arc{stroke-width:6}
 .g .v{font-size:14.5px}
 .g .u{font-size:7.5px;margin-top:1px}
+
+/* ---- v1.4 tap-to-edit sheet ---- */
+.card[data-id]{cursor:pointer}
+.card[data-id]:active::after{background:linear-gradient(180deg,rgba(20,50,80,.96),rgba(10,30,55,.96))}
+.lbadge{font-family:RC;font-size:8px;font-weight:800;color:#1a0f00;background:#ffcf7a;border-radius:3px;padding:0 3px;letter-spacing:.4px;vertical-align:1px}
+.chip.primary{background:#0f5a86;color:#fff;border-color:var(--cy)}
+.chip.warn{color:#ffcf7a;border-color:#a8742a}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.sheet-card{width:100%;max-width:520px;background:#081426;border-top:2px solid var(--cy);border-radius:18px 18px 0 0;
+  padding:16px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -6px 30px rgba(40,140,200,.3)}
+.sheet h2{font-family:Orbitron;font-size:17px;margin:0 0 4px;color:#a0e6ff}
+.hint{font-size:13px;color:var(--muted);margin:4px 0 10px}
+.hint .lbadge{font-size:10px}
+.row{display:flex;align-items:center;gap:8px;margin:10px 0}
+.row>label{flex:0 0 74px;font-size:16px;color:var(--muted);font-weight:700}
+.row input{flex:1;height:52px;font-size:22px;font-weight:700;border-radius:10px;border:1.5px solid #1d5a85;background:#0a1c33;color:#fff;padding:0 12px;min-width:0}
+.row input[type=date]{font-size:17px;height:46px}
+.unit{color:var(--muted);font-weight:700;width:30px}
+.btns{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.btns .chip{padding:13px 20px;font-size:17px}

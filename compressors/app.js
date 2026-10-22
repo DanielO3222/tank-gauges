@@ -1,12 +1,22 @@
 /* Compressor Log v1 — reads data/compressors.json, one day at a time, fixed display order. */
 (() => {
 "use strict";
-const DATA_URL = "data/compressors.json", K_CACHE = "cp_cache_v1";
+const DATA_URL = "data/compressors.json", K_CACHE = "cp_cache_v1", K_LOCAL = "cp_local_v1";
 const $ = s => document.querySelector(s);
 const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DEF_FIELDS = {suction:{label:"Suction",unit:"psi",max:100}, rpm:{label:"RPM",unit:"rpm",max:1800}};
 let db = null, fetchedAt = null, online = null, cur = initialDate();
+let local = loadJSON(K_LOCAL) || {};   // "date|id" -> {suction, rpm, ts} edits saved on this phone only
+function saveLocal(){ localStorage.setItem(K_LOCAL, JSON.stringify(local)); }
+function sharedRow(date,id){ return ((db&&db.days[date])||{})[id] || null; }
+function localRow(date,id){ return local[date+"|"+id] || null; }
+function merged(date,id){ const s=sharedRow(date,id), l=localRow(date,id); if(!s&&!l) return null;
+  const r=Object.assign({}, s||{}); if(l) for(const k of Object.keys(fields())) if(typeof l[k]==="number") r[k]=l[k]; return r; }
+function pruneLocal(){ let ch=false;
+  for(const [k,l] of Object.entries(local)){ const [d,id]=k.split("|"), s=sharedRow(d,id);
+    if(s && Object.keys(fields()).every(f=>typeof l[f]!=="number" || s[f]===l[f])){ delete local[k]; ch=true; } }
+  if(ch) saveLocal(); }
 
 function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 function ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -25,7 +35,7 @@ async function refresh(){
   try{
     const r=await fetch(DATA_URL+"?t="+Date.now(),{cache:"no-store"}); if(!r.ok) throw new Error("HTTP "+r.status);
     const j=await r.json(); if(!j.days||!j.compressors) throw new Error("bad data");
-    db=j; fetchedAt=new Date().toISOString(); online=true; localStorage.setItem(K_CACHE, JSON.stringify({db,fetchedAt}));
+    db=j; fetchedAt=new Date().toISOString(); online=true; localStorage.setItem(K_CACHE, JSON.stringify({db,fetchedAt})); pruneLocal();
   }catch(e){ online=false; if(!db){ const c=loadJSON(K_CACHE); if(c){ db=c.db; fetchedAt=c.fetchedAt; } } }
   render();
 }
@@ -76,11 +86,10 @@ function render(){
   $("#subtitle").textContent=`DAILY LOG · ${longDate(cur).toUpperCase()}`;
   document.title=`Compressors · ${shortDate(cur)}`;
   const v=$("#view"); if(!db){ v.innerHTML=""; return; }
-  const day=(db.days[cur])||{};
   v.style.gridTemplateRows=`repeat(${Math.ceil(db.compressors.length/2)},minmax(0,1fr))`;
-  v.innerHTML=db.compressors.map((c,i)=>{ const r=day[c.id]||{};
-    return `<section class="card"><span class="accent"></span>
-      <div class="name"><b>${i+1}</b>${esc(c.name.toUpperCase())}</div>
+  v.innerHTML=db.compressors.map((c,i)=>{ const r=merged(cur,c.id)||{}, lc=!!localRow(cur,c.id);
+    return `<section class="card" data-id="${esc(c.id)}"><span class="accent"></span>
+      <div class="name"><b>${i+1}</b>${esc(c.name.toUpperCase())}${lc?' <span class="lbadge">LOCAL</span>':""}</div>
       <div class="body">${pkg(r.rpm)}<div class="gauges">${gauge("suc","suction",r.suction)}${gauge("rpm","rpm",r.rpm)}</div></div></section>`; }).join("");
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     v.querySelectorAll(".arc").forEach(a=>a.style.strokeDashoffset=a.dataset.o);
@@ -88,8 +97,7 @@ function render(){
   }));
 }
 function dayLines(){
-  const day=(db&&db.days[cur])||{};
-  return db.compressors.map(c=>{ const r=day[c.id]; if(!r) return `${c.name} —`;
+  return db.compressors.map(c=>{ const r=merged(cur,c.id); if(!r) return `${c.name} —`;
     return c.name+Object.keys(fields()).filter(k=>typeof r[k]==="number").map(k=>` ${k} ${r[k]}`).join(""); }).join("\n");
 }
 async function copyDay(){
@@ -103,8 +111,35 @@ function go(date){ cur=date; render(); }
 $("#prev").onclick=()=>go(addDays(cur,-1)); $("#next").onclick=()=>go(addDays(cur,1));
 $("#todayBtn").onclick=()=>go(todayStr()); $("#picker").onchange=e=>{ if(e.target.value) go(e.target.value); };
 $("#copyBtn").onclick=copyDay;
+
+/* ---------- tap a card: add / fix (saved on this phone only) ---------- */
+let fId=null;
+function numOrNull(el){ const t=el.value.trim().replace(/,/g,""); if(t==="") return null; const n=Number(t); return isFinite(n)&&n>=0?n:NaN; }
+function prefill(){ const r=merged($("#fDate").value,fId)||{};
+  $("#fSuc").value=typeof r.suction==="number"?r.suction:""; $("#fRpm").value=typeof r.rpm==="number"?r.rpm:"";
+  $("#fDelete").hidden=!localRow($("#fDate").value,fId); }
+function openForm(id){
+  if(!db) return toast("No data loaded yet");
+  const c=db.compressors.find(c=>c.id===id); if(!c) return;
+  fId=id; $("#fName").textContent=c.name; $("#fDate").value=cur; prefill(); $("#sheet").hidden=false;
+}
+document.addEventListener("click",e=>{ const card=e.target.closest(".card[data-id]"); if(card) openForm(card.dataset.id); });
+$("#fDate").onchange=prefill;
+$("#fCancel").onclick=()=>$("#sheet").hidden=true;
+$("#sheet").onclick=e=>{ if(e.target.id==="sheet") $("#sheet").hidden=true; };
+$("#fSave").onclick=()=>{
+  const d=$("#fDate").value, suc=numOrNull($("#fSuc")), rpm=numOrNull($("#fRpm"));
+  if(!d) return toast("Pick a date"); if(Number.isNaN(suc)||Number.isNaN(rpm)) return toast("Numbers only");
+  if(suc===null&&rpm===null) return toast("Enter suction or RPM");
+  const s=sharedRow(d,fId)||{}, k=d+"|"+fId, l={ts:new Date().toISOString()};
+  if(suc!==null) l.suction=suc; if(rpm!==null) l.rpm=rpm;
+  if((suc===null||s.suction===suc)&&(rpm===null||s.rpm===rpm)) delete local[k]; else local[k]=l;
+  saveLocal(); $("#sheet").hidden=true; cur=d; render();
+  toast(`${db.compressors.find(c=>c.id===fId).name} saved on phone`);
+};
+$("#fDelete").onclick=()=>{ delete local[$("#fDate").value+"|"+fId]; saveLocal(); $("#sheet").hidden=true; render(); toast("Local edit removed"); };
 let sx=null;
-document.addEventListener("touchstart",e=>{ sx=[e.touches[0].clientX,e.touches[0].clientY]; },{passive:true});
+document.addEventListener("touchstart",e=>{ if(e.target.closest(".sheet")){ sx=null; return; } sx=[e.touches[0].clientX,e.touches[0].clientY]; },{passive:true});
 document.addEventListener("touchend",e=>{ if(!sx) return; const dx=e.changedTouches[0].clientX-sx[0], dy=e.changedTouches[0].clientY-sx[1]; sx=null;
   if(Math.abs(dx)>70&&Math.abs(dx)>2*Math.abs(dy)) go(addDays(cur,dx<0?1:-1)); },{passive:true});
 const c=loadJSON(K_CACHE); if(c){ db=c.db; fetchedAt=c.fetchedAt; }

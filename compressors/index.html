@@ -41,6 +41,20 @@
   </div>
   <main id="view"></main>
 </div>
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-label="Add or fix compressor reading">
+    <h2 id="fName">—</h2>
+    <p class="hint">Saved on this phone only (marked <b class="lbadge">LOCAL</b>) until it's in the shared file. Tap Copy to send.</p>
+    <div class="row"><label for="fDate">Date</label><input id="fDate" type="date"></div>
+    <div class="row"><label for="fSuc">Suction</label><input id="fSuc" type="text" inputmode="decimal" placeholder="psi" autocomplete="off"><span class="unit">psi</span></div>
+    <div class="row"><label for="fRpm">RPM</label><input id="fRpm" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="rpm" autocomplete="off"><span class="unit">rpm</span></div>
+    <div class="btns">
+      <button id="fCancel" class="chip">Cancel</button>
+      <button id="fDelete" class="chip warn" hidden>Delete</button>
+      <button id="fSave" class="chip primary">Save</button>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast" hidden></div>
 <script src="app.js"></script>
 </body>
