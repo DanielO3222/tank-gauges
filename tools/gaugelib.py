@@ -29,6 +29,51 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PATH = os.path.normpath(os.path.join(HERE, "..", "data", "gauges.json"))
 DEFAULT_ROUTE = ["1-20", "14-20", "16-20", "17-20", "9-20", "11-20", "6-20", "7-20"]
 TANKS = ("oil", "water")
+# Water haulers (semis): id -> display name, capacity in bbl. Stored per day on the
+# lease group as "hauls": {"b-fed": 120, "timbro-01": 185}; names/caps in top-level "haulers".
+HAULERS = [{"id": "b-fed", "name": "B-Fed", "cap": 185},
+           {"id": "timbro-01", "name": "Timbro 01", "cap": 185}]
+
+
+def hauler_id(name):
+    n = "".join(c for c in name.lower() if c.isalnum())
+    if n.startswith("bfed"):
+        return "b-fed"
+    if n.startswith("timbro"):
+        return "timbro-01"
+    raise ValueError(f"unknown hauler {name!r} (want B-Fed or Timbro 01)")
+
+
+def set_haul(db, date, lease, hauler, bbl, force=False):
+    """Set barrels hauled for a day. Returns previous value (or None)."""
+    datetime.date.fromisoformat(date)
+    hid = hauler_id(hauler)
+    db.setdefault("haulers", [dict(h) for h in HAULERS])
+    cap = next((h["cap"] for h in db["haulers"] if h["id"] == hid), 185)
+    if bbl < 0 or (bbl > cap and not force):
+        raise ValueError(f"barrels must be 0-{cap}, got {bbl} (use --force to override)")
+    lid = ensure_lease(db, lease)
+    groups = db["days"].setdefault(date, [])
+    g = next((g for g in groups if g["lease"] == lid), None)
+    if g is None:
+        g = {"lease": lid, "locations": []}
+        groups.append(g)
+    hauls = g.setdefault("hauls", {})
+    prev = hauls.get(hid)
+    hauls[hid] = int(bbl)
+    return prev
+
+
+def delete_haul(db, date, hauler):
+    hid = hauler_id(hauler)
+    groups = db["days"].get(date, [])
+    for g in list(groups):
+        if g.get("hauls", {}).pop(hid, None) is not None and not g["hauls"]:
+            del g["hauls"]
+        if not g["locations"] and not g.get("hauls"):
+            groups.remove(g)
+    if not groups:
+        db["days"].pop(date, None)
 
 
 def now_iso():
@@ -129,7 +174,7 @@ def delete_reading(db, date, lease, loc, tank=None):
                     r.pop(tank, None)
                 if not tank or not any(r.get(t) for t in TANKS):
                     g["locations"].remove(r)
-        if not g["locations"]:
+        if not g["locations"] and not g.get("hauls"):
             groups.remove(g)
     if not groups:
         db["days"].pop(date, None)
@@ -145,4 +190,8 @@ def day_table(db, date):
         out.append(f"{db['leases'].get(g['lease'], {}).get('name', g['lease'])}  {date}")
         for r in g["locations"]:
             out.append(f"  {r['loc']:<8} oil {fmt(r.get('oil')):<8} water {fmt(r.get('water'))}")
+        names = {h["id"]: h for h in db.get("haulers", HAULERS)}
+        for hid, v in g.get("hauls", {}).items():
+            h = names.get(hid, {"name": hid, "cap": 185})
+            out.append(f"  haul {h['name']:<10} {v} / {h['cap']} bbl")
     return "\n".join(out) or f"(no readings for {date})"

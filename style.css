@@ -184,3 +184,26 @@ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
 .statwrap{display:flex;align-items:center;gap:8px}
 .chip.refresh{padding:4px 10px;font-size:13px;line-height:1.2}
 .chip.refresh.spin{opacity:.6}
+
+/* ---- v1.6 water hauled semis ---- */
+:root{--haulH:86px;--chrome:calc(534px + var(--haulH))}
+.hauls-h{font-family:Orbitron;font-weight:700;font-size:9.5px;letter-spacing:1px;color:#a0e6ff;margin:5px 4px 3px;line-height:11px}
+.hauls{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.card.haul{padding:3px 4px 2px}
+.hh{display:flex;justify-content:space-between;align-items:baseline;padding:0 3px 0 8px;line-height:13px}
+.hn{font-family:Orbitron;font-weight:700;font-size:10.5px;color:var(--txt)}
+.hv{font-family:Orbitron;font-weight:700;font-size:10.5px;color:var(--wat);text-shadow:0 0 6px rgba(40,200,255,.5);white-space:nowrap}
+.hv.none{color:#4a6a80;text-shadow:none}
+.semi{display:block;width:100%;height:auto;max-height:46px;overflow:visible}
+.semi .truck,.semi .trailer{fill:rgba(90,220,255,.06);stroke:#5aa8d0;stroke-width:1.1;stroke-linejoin:round;stroke-linecap:round}
+.semi .truck .glass{fill:rgba(90,220,255,.16)}
+.semi .trailer .rail{fill:none}.semi .trailer .valve{stroke:var(--wat)}.semi .trailer .sight{stroke:var(--wat);stroke-width:1.4}
+.semi .ground{stroke:#1d4a6a;stroke-width:1;stroke-dasharray:3 3}
+.semi .tankline{fill:none;stroke:var(--wat);stroke-width:1}
+.semi .tankline line{stroke-opacity:.35}
+.semi .tankline .shell{stroke-width:1.7;fill:rgba(0,0,0,.25);filter:drop-shadow(0 0 2.5px rgba(40,200,255,.75))}
+.semi .tankline rect:not(.shell){fill:rgba(40,200,255,.2)}
+.semi .wheels .tire{fill:#07101c;stroke:#5aa8d0;stroke-width:1.3}.semi .wheels .hub{fill:#5aa8d0;stroke:none}
+.semi .hfill{transition:transform 1.8s cubic-bezier(.2,.75,.25,1)}
+.semi .surf{fill:#c8f2ff}.semi .shine{fill:rgba(255,255,255,.18)}
+.semi.empty .tankline .shell{stroke-dasharray:4 3;filter:none;stroke-opacity:.6}

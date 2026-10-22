@@ -109,6 +109,52 @@ function gaugedDays(){
   return [...s].sort();
 }
 
+/* ---------- water hauled (semis) ---------- */
+const DEF_HAULERS=[{id:"b-fed",name:"B-Fed",cap:185},{id:"timbro-01",name:"Timbro 01",cap:185}];
+function haulers(){ return (db && db.haulers && db.haulers.length) ? db.haulers : DEF_HAULERS; }
+function haulsFor(date){ const o={}; for(const g of (db.days[date]||[])) if(g.hauls) Object.assign(o,g.hauls); return o; }
+const TK={x:60,y:12,w:192,h:28};
+function semiSvg(id,pct,has){
+  const c="h-"+id.replace(/[^a-z0-9]/gi,""), dy=(TK.h*(1-pct/100)).toFixed(2);
+  const wheel=x=>`<circle cx="${x}" cy="52" r="6.2" class="tire"/><circle cx="${x}" cy="52" r="2.3" class="hub"/>`;
+  const rings=[84,108,132,156,180,204,228].map(x=>`<line x1="${x}" y1="${TK.y+1}" x2="${x}" y2="${TK.y+TK.h-1}"/>`).join("");
+  const posts=[96,124,152,180,208].map(x=>`<line x1="${x}" y1="5" x2="${x}" y2="12"/>`).join("");
+  return `<svg class="semi${has?"":" empty"}" viewBox="0 0 260 62" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+  <defs><clipPath id="${c}"><rect x="${TK.x}" y="${TK.y}" width="${TK.w}" height="${TK.h}" rx="13"/></clipPath>
+   <linearGradient id="${c}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fd8ff"/><stop offset="1" stop-color="#0e4fa0"/></linearGradient></defs>
+  <line x1="2" y1="58.5" x2="258" y2="58.5" class="ground"/>
+  <g class="truck">
+   <path d="M4,45 L4,33 Q4,29.5 8,29.5 L22,29.5 L22,45 Z"/><path d="M22,45 L22,14 Q22,11 25,11 L39,11 Q42,11 42,14 L42,45 Z"/>
+   <rect x="25.5" y="14.5" width="13" height="11" rx="1.5" class="glass"/><line x1="7" y1="33" x2="7" y2="42"/><line x1="10" y1="33" x2="10" y2="42"/>
+   <line x1="45.5" y1="5" x2="45.5" y2="40"/><rect x="24" y="39" width="14" height="5" rx="2"/>
+   <rect x="3" y="45" width="72" height="2.6" rx="1"/><rect x="51" y="41.4" width="18" height="3" rx="1" class="fw"/>
+   <path d="M43,48 Q50,40.5 59,40.5 Q66,40.5 73,48"/><path d="M8.5,48 Q17,40.5 25.5,48"/>
+  </g>
+  <g class="trailer">
+   <rect x="58" y="40" width="196" height="3" rx="1"/><rect x="70" y="43" width="122" height="3" rx="1" class="pan"/>
+   <line x1="88" y1="43" x2="88" y2="54"/><rect x="85" y="54" width="6" height="2" rx=".8"/>
+   <path d="M197,48 Q206,40.5 215,40.5 L231,40.5 Q240,40.5 246,48"/>
+   <polyline points="92,5 212,5" class="rail"/>${posts}
+   <rect x="252" y="33" width="5" height="4.5" rx="1" class="valve"/><line x1="254.5" y1="16" x2="254.5" y2="32" class="sight"/>
+  </g>
+  <g clip-path="url(#${c})"><g class="hfill" data-y="${dy}" style="transform:translateY(${TK.h}px)">
+   <rect x="${TK.x}" y="${TK.y}" width="${TK.w}" height="${TK.h+2}" fill="url(#${c}g)"/>
+   <rect x="${TK.x}" y="${TK.y}" width="${TK.w}" height="1.4" class="surf"/>
+   <rect x="${TK.x}" y="${TK.y+4}" width="${TK.w}" height="2" class="shine"/></g></g>
+  <g class="tankline"><rect x="${TK.x}" y="${TK.y}" width="${TK.w}" height="${TK.h}" rx="13" class="shell"/>${rings}
+   <rect x="98" y="9" width="9" height="3" rx="1.2"/><rect x="138" y="9" width="9" height="3" rx="1.2"/><rect x="178" y="9" width="9" height="3" rx="1.2"/></g>
+  <g class="wheels">${wheel(17)}${wheel(52)}${wheel(66)}${wheel(207)}${wheel(221)}${wheel(235)}</g>
+ </svg>`;
+}
+function haulHtml(){
+  const hs=haulsFor(cur);
+  return `<div class="hauls-h">WATER HAULED</div><div class="hauls">`+haulers().map(h=>{
+    const v=hs[h.id], has=typeof v==="number", cap=h.cap||185, pct=has?Math.max(0,Math.min(100,v/cap*100)):0;
+    return `<section class="card haul"><span class="accent"></span><div class="hh"><span class="hn">${esc(h.name.toUpperCase())}</span>
+      <span class="hv${has?"":" none"}">${has?`${v} / ${cap} bbl`:`— / ${cap} bbl`}</span></div>${semiSvg(h.id,pct,has)}</section>`;
+  }).join("")+`</div>`;
+}
+
 /* ---------- render ---------- */
 function render(animate=true){
   const d=parseYmd(cur);
@@ -140,9 +186,10 @@ function render(animate=true){
   }
   v.innerHTML = view==="list" ? renderList(groups) : renderTanks(groups);
   if(view==="tanks"){
-    const fills=[...v.querySelectorAll(".fill")];
-    const set=()=>fills.forEach((f,i)=>{ f.style.transitionDelay=(i*0.06)+"s"; f.style.height=f.dataset.h; });
-    if(animate) requestAnimationFrame(()=>requestAnimationFrame(set)); else { fills.forEach(f=>f.style.transition="none"); set(); }
+    const fills=[...v.querySelectorAll(".fill")], hf=[...v.querySelectorAll(".hfill")];
+    const set=()=>{ fills.forEach((f,i)=>{ f.style.transitionDelay=(i*0.06)+"s"; f.style.height=f.dataset.h; });
+      hf.forEach((f,i)=>{ f.style.transitionDelay=((fills.length+i)*0.06)+"s"; f.style.transform=`translateY(${f.dataset.y}px)`; }); };
+    if(animate) requestAnimationFrame(()=>requestAnimationFrame(set)); else { fills.forEach(f=>f.style.transition="none"); hf.forEach(f=>f.style.transition="none"); set(); }
   }
 }
 function tankHtml(lease,loc,tank,cell){
@@ -166,8 +213,9 @@ function renderTanks(groups){
     h+=`<div class="grid">`+g.rows.map(r=>`<section class="card"><span class="accent"></span>
       <div class="loc">${esc(r.loc)}</div><div class="pair">${tankHtml(g.lease,r.loc,"oil",r.oil)}${tankHtml(g.lease,r.loc,"water",r.water)}</div></section>`).join("")+`</div>`;
   }
-  return h;
+  return h+haulHtml();
 }
+function haulLines(){ const hs=haulsFor(cur); return haulers().map(h=>[h, hs[h.id]]); }
 function renderList(groups){
   let h=`<table class="list"><thead><tr><th>LOCATION</th><th>OIL</th><th>WATER</th></tr></thead><tbody>`;
   for(const g of groups){
@@ -177,12 +225,14 @@ function renderList(groups){
       h+=`<tr class="r"><td class="l">${esc(r.loc)}</td>${c(r.oil,"o","oil")}${c(r.water,"w","water")}</tr>`;
     }
   }
+  h+=`<tr><td class="lh" colspan="3">WATER HAULED</td></tr>`+haulLines().map(([hl,v])=>`<tr class="r"><td class="l">${esc(hl.name)}</td><td class="w" colspan="2">${typeof v==="number"?`${v} / ${hl.cap||185} bbl`:"—"}</td></tr>`).join("");
   return h+`</tbody></table><div class="listtools"><button class="chip" id="copyDay">Copy as text</button></div>`;
 }
 function dayText(){
   const groups=dayGroups(cur), d=parseYmd(cur);
   let s=`Tank gauges — ${WD[d.getDay()]} ${longDate(cur)}\n`;
   for(const g of groups){ s+=`${leaseName(g.lease)}\n`; for(const r of g.rows) s+=`${r.loc.padEnd(7)} oil ${fmt(r.oil&&r.oil.v).padEnd(7)} water ${fmt(r.water&&r.water.v)}\n`; }
+  const hl=haulLines().filter(([,v])=>typeof v==="number"); if(hl.length){ s+="Water hauled\n"; for(const [h,v] of hl) s+=`${h.name.padEnd(10)} ${v} / ${h.cap||185} bbl\n`; }
   return s;
 }
 async function copy(text,msg){
