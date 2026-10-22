@@ -6,7 +6,8 @@ Examples:
   add_compressor.py --batch "timbro 1931 rpm 1150; bfed suction 38"      # today, partial is fine
   add_compressor.py --show --date 2026-10-22
   add_compressor.py --delete "peanut" --date 2026-10-22
-Names match loosely: speedgoat, fiscus, timbro 1 / timbro 01, timbro 1931, bfed, bringelson / 5-20, peanut.
+Names match loosely: speedgoat, fiscus, timbro 1 / timbro 01, timbro 1931, bfed, bringelson / 5-20, peanut,
+  sonic star / sonicstar, boydston 1|2|3 / boydston #2, shull 35, shull 25, martin, caster.
 Fields: any key in the file's "fields" (suction, rpm, ...). Values are numbers.
 """
 import argparse, datetime, json, os, re, sys, tempfile
@@ -17,15 +18,31 @@ PATH = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 ALIASES = {"suc": "suction", "psi": "suction", "suct": "suction", "rpms": "rpm"}
 
 
+# Display order lives in compressors/data/compressors.json ("compressors" array) — reorder there.
+# Loose name matching: (id, test on the lowercase alphanumeric-only name). First match wins.
+MATCH = [
+    ("timbro-1931", lambda n: "1931" in n),
+    ("timbro-01", lambda n: n.startswith("timbro")),
+    ("speed-goat", lambda n: "speed" in n or "goat" in n),
+    ("fiscus", lambda n: n.startswith("fiscus")),
+    ("b-fed", lambda n: n.startswith("bfed")),
+    ("bringelson-5-20", lambda n: n.startswith("bringelson") or n.startswith("520")),
+    ("peanut", lambda n: n.startswith("peanut")),
+    ("sonic-star", lambda n: n.startswith("sonic")),
+    ("boydston-1", lambda n: n.startswith("boyd") and n.endswith("1")),
+    ("boydston-2", lambda n: n.startswith("boyd") and n.endswith("2")),
+    ("boydston-3", lambda n: n.startswith("boyd") and n.endswith("3")),
+    ("shull-35", lambda n: n.startswith("shul") and n.endswith("35")),
+    ("shull-25", lambda n: n.startswith("shul") and n.endswith("25")),
+    ("martin", lambda n: n.startswith("martin")),
+    ("caster", lambda n: n.startswith("caster")),
+]
+
+
 def comp_id(name):
     n = re.sub(r"[^a-z0-9]", "", name.lower())
-    if "1931" in n: return "timbro-1931"
-    if n.startswith("timbro"): return "timbro-01"
-    if "speed" in n or "goat" in n: return "speed-goat"
-    if n.startswith("fiscus"): return "fiscus"
-    if n.startswith("bfed"): return "b-fed"
-    if n.startswith("bringelson") or n.startswith("520"): return "bringelson-5-20"
-    if n.startswith("peanut"): return "peanut"
+    for cid, test in MATCH:
+        if test(n): return cid
     raise ValueError(f"unknown compressor {name!r}")
 
 

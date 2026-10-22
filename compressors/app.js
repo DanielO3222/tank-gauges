@@ -44,7 +44,7 @@ function gauge(cls,key,v){
     <path class="arc" d="M4,24 A18,18 0 0 1 40,24" stroke-dasharray="${ARC_L.toFixed(2)}" style="stroke-dashoffset:${ARC_L.toFixed(2)}" data-o="${(ARC_L*(1-p)).toFixed(2)}"/>
     <line class="ndl" x1="22" y1="24" x2="22" y2="10" style="transform:rotate(-90deg)" data-r="${(-90+180*p).toFixed(1)}"/>
     <circle class="pin" cx="22" cy="24" r="2.4"/></svg>
-    <div class="num"><span class="v${has?"":" none"}">${has?num(v):"—"}</span><span class="u">${esc((f.label||key).toUpperCase())}${f.unit&&f.unit!==key?" · "+esc(f.unit.toUpperCase()):""}</span></div></div>`;
+    <div class="num"><span class="v${has?"":" none"}">${has?num(v):"—"}</span><span class="u">${esc((f.unit||f.label||key).toUpperCase())}</span></div></div>`;
 }
 function pkg(rpm){
   const on=typeof rpm==="number"&&rpm>0, dur=on?Math.max(0.6,Math.min(6,2400/rpm)).toFixed(2):0;
@@ -77,10 +77,11 @@ function render(){
   document.title=`Compressors · ${shortDate(cur)}`;
   const v=$("#view"); if(!db){ v.innerHTML=""; return; }
   const day=(db.days[cur])||{};
+  v.style.gridTemplateRows=`repeat(${Math.ceil(db.compressors.length/2)},minmax(0,1fr))`;
   v.innerHTML=db.compressors.map((c,i)=>{ const r=day[c.id]||{};
-    return `<section class="card"><span class="accent"></span>${pkg(r.rpm)}<div class="info">
+    return `<section class="card"><span class="accent"></span>
       <div class="name"><b>${i+1}</b>${esc(c.name.toUpperCase())}</div>
-      <div class="gauges">${gauge("suc","suction",r.suction)}${gauge("rpm","rpm",r.rpm)}</div></div></section>`; }).join("");
+      <div class="body">${pkg(r.rpm)}<div class="gauges">${gauge("suc","suction",r.suction)}${gauge("rpm","rpm",r.rpm)}</div></div></section>`; }).join("");
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     v.querySelectorAll(".arc").forEach(a=>a.style.strokeDashoffset=a.dataset.o);
     v.querySelectorAll(".ndl").forEach(n=>n.style.transform=`rotate(${n.dataset.r}deg)`);
