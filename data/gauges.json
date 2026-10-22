@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-10-22T07:16:29-06:00",
+ "updated": "2026-10-22T07:19:55-06:00",
  "max_ft": 20,
  "default_lease": "bringelson",
  "leases": {
@@ -350,6 +350,13 @@
       "water": {
        "ft": 6,
        "in": 7
+      }
+     },
+     {
+      "loc": "9-20",
+      "water": {
+       "ft": 2,
+       "in": 3
       }
      },
      {
