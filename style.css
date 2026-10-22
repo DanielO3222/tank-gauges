@@ -207,3 +207,4 @@ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
 .semi .hfill{transition:transform 1.8s cubic-bezier(.2,.75,.25,1)}
 .semi .surf{fill:#c8f2ff}.semi .shine{fill:rgba(255,255,255,.18)}
 .semi.empty .tankline .shell{stroke-dasharray:4 3;filter:none;stroke-opacity:.6}
+.statwrap{gap:5px}.statwrap .chip.refresh{padding:4px 8px}

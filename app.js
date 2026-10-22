@@ -168,8 +168,7 @@ function render(animate=true){
   history.replaceState(null,"", cur===todayStr() ? location.pathname : "#"+cur);
 
   const nLocal=Object.keys(local).length;
-  $("#localBar").hidden = !nLocal;
-  $("#localText").textContent = `${nLocal} local edit${nLocal>1?"s":""} not in the shared file yet`;
+  $("#copyLocal").classList.toggle("warn", !!nLocal); $("#copyLocal").textContent = nLocal ? `Copy (${nLocal})` : "Copy";
 
   const v=$("#view");
   if(!db){ $("#subtitle").textContent="—"; v.innerHTML=`<div class="empty-day">${online===false?"No connection and no saved data yet.<br>Open once with signal.":"Loading…"}</div>`; return; }
@@ -255,6 +254,7 @@ document.addEventListener("click",e=>{
   if(e.target.id==="copyDay") copy(dayText(),"Day copied");
 });
 $("#copyLocal").onclick=()=>{
+  if(!Object.keys(local).length) return toast("No local edits to copy");
   const lines=Object.entries(local).sort().map(([k,v])=>{ const [d,l,loc,t]=k.split("|"); return `${d} ${leaseName(l)} ${loc} ${t} ${v.ft}' ${v.in}"`; });
   copy("Add these gauges to the shared file:\n"+lines.join("\n"),"Local edits copied");
 };
