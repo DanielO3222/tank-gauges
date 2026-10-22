@@ -168,7 +168,7 @@ function render(animate=true){
   history.replaceState(null,"", cur===todayStr() ? location.pathname : "#"+cur);
 
   const nLocal=Object.keys(local).length;
-  $("#copyLocal").classList.toggle("warn", !!nLocal); $("#copyLocal").textContent = nLocal ? `Copy (${nLocal})` : "Copy";
+  $("#copyLocal").textContent = "Copy";
 
   const v=$("#view");
   if(!db){ $("#subtitle").textContent="—"; v.innerHTML=`<div class="empty-day">${online===false?"No connection and no saved data yet.<br>Open once with signal.":"Loading…"}</div>`; return; }
@@ -253,11 +253,7 @@ document.addEventListener("click",e=>{
   const ed=e.target.closest("[data-edit]"); if(ed){ const [l,loc,t]=ed.dataset.edit.split("|"); return openForm(l,loc,t); }
   if(e.target.id==="copyDay") copy(dayText(),"Day copied");
 });
-$("#copyLocal").onclick=()=>{
-  if(!Object.keys(local).length) return toast("No local edits to copy");
-  const lines=Object.entries(local).sort().map(([k,v])=>{ const [d,l,loc,t]=k.split("|"); return `${d} ${leaseName(l)} ${loc} ${t} ${v.ft}' ${v.in}"`; });
-  copy("Add these gauges to the shared file:\n"+lines.join("\n"),"Local edits copied");
-};
+$("#copyLocal").onclick=()=>copy(dayText(),"Day copied");
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
 window.addEventListener("online",()=>refresh());
 window.addEventListener("offline",()=>{ online=false; render(false); });
