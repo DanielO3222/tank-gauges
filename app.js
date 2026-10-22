@@ -195,17 +195,13 @@ function render(animate=true){
 }
 function tankHtml(lease,loc,tank,cell){
   const val=cell&&cell.v, pct=val?Math.max(0,Math.min(100,inches(val)/(maxFt()*12)*100)):0;
-  const p=val?prevReading(cur,lease,loc,tank):null;
-  const lb=cell&&cell.local?'<span class="lbadge">LOCAL</span> ':"";
-  let dl="";
-  if(p){ const n=inches(val)-inches(p.v); dl=`<div class="delta ${n>0?"up":n<0?"dn":""}" title="since ${p.d}">${lb}${fmtDelta(n)} <span>since ${shortDate(p.d).slice(4)}</span></div>`; }
-  else dl=`<div class="delta">${lb}</div>`;
+  const lb=cell&&cell.local?' <span class="lbadge">L</span>':"";
   const labels=[5,10,15,20].map(f=>`<b style="bottom:${f/maxFt()*100}%">${f}</b>`).join("");
   return `<div class="tk ${tank}" data-edit="${esc(lease)}|${esc(loc)}|${tank}">
     <div class="kind">${tank.toUpperCase()}</div>
     <div class="tw"><div class="tank"><div class="fill${val?"":" empty"}" data-h="${pct.toFixed(2)}%"></div></div>
       <div class="scale"><div class="minor"></div><div class="major"></div>${labels}</div></div>
-    <div class="val${val?"":" none"}">${fmt(val)}</div>${dl}</div>`;
+    <div class="val${val?"":" none"}">${fmt(val)}${lb}</div></div>`;
 }
 function renderTanks(groups){
   let h="";

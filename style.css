@@ -186,7 +186,7 @@ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
 .chip.refresh.spin{opacity:.6}
 
 /* ---- v1.6 water hauled semis ---- */
-:root{--haulH:86px;--chrome:calc(534px + var(--haulH))}
+:root{--haulH:86px;--chrome:calc(482px + var(--haulH))}
 .hauls-h{font-family:Orbitron;font-weight:700;font-size:9.5px;letter-spacing:1px;color:#a0e6ff;margin:5px 4px 3px;line-height:11px}
 .hauls{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .card.haul{padding:3px 4px 2px}
