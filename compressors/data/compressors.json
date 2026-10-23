@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-10-23T09:33:59-06:00",
+ "updated": "2026-10-23T10:08:07-06:00",
  "compressors": [
   {
    "id": "speed-goat",
@@ -80,6 +80,10 @@
    "speed-goat": {
     "suction": 58.4,
     "rpm": 1061
+   },
+   "timbro-01": {
+    "suction": 42,
+    "rpm": 1550
    }
   }
  }
