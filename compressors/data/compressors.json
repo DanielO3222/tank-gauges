@@ -1,90 +1,110 @@
 {
- "schema": 1,
- "updated": "2026-10-23T10:08:07-06:00",
- "compressors": [
-  {
-   "id": "speed-goat",
-   "name": "Speed Goat"
+  "schema": 1,
+  "updated": "2026-10-23T12:43:27-06:00",
+  "compressors": [
+    {
+      "id": "speed-goat",
+      "name": "Speed Goat"
+    },
+    {
+      "id": "fiscus",
+      "name": "Fiscus"
+    },
+    {
+      "id": "timbro-01",
+      "name": "Timbro 01"
+    },
+    {
+      "id": "timbro-1931",
+      "name": "Timbro 1931"
+    },
+    {
+      "id": "b-fed",
+      "name": "B-Fed"
+    },
+    {
+      "id": "bringelson-5-20",
+      "name": "Bringelson 5-20"
+    },
+    {
+      "id": "bringelson-13-20",
+      "name": "Bringelson 13-20"
+    },
+    {
+      "id": "peanut",
+      "name": "Peanut"
+    },
+    {
+      "id": "sonic-star",
+      "name": "Sonic Star"
+    },
+    {
+      "id": "boydston-1",
+      "name": "Boydston #1"
+    },
+    {
+      "id": "boydston-2",
+      "name": "Boydston #2"
+    },
+    {
+      "id": "boydston-3",
+      "name": "Boydston #3"
+    },
+    {
+      "id": "shull-35",
+      "name": "Shull 35"
+    },
+    {
+      "id": "shull-25",
+      "name": "Shull 25"
+    },
+    {
+      "id": "martin",
+      "name": "Martin"
+    },
+    {
+      "id": "caster",
+      "name": "Caster 36"
+    }
+  ],
+  "fields": {
+    "suction": {
+      "label": "Suction",
+      "unit": "psi",
+      "max": 100
+    },
+    "rpm": {
+      "label": "RPM",
+      "unit": "rpm",
+      "max": 1800
+    }
   },
-  {
-   "id": "fiscus",
-   "name": "Fiscus"
-  },
-  {
-   "id": "timbro-01",
-   "name": "Timbro 01"
-  },
-  {
-   "id": "timbro-1931",
-   "name": "Timbro 1931"
-  },
-  {
-   "id": "b-fed",
-   "name": "B-Fed"
-  },
-  {
-   "id": "bringelson-5-20",
-   "name": "Bringelson 5-20"
-  },
-  {
-   "id": "peanut",
-   "name": "Peanut"
-  },
-  {
-   "id": "sonic-star",
-   "name": "Sonic Star"
-  },
-  {
-   "id": "boydston-1",
-   "name": "Boydston #1"
-  },
-  {
-   "id": "boydston-2",
-   "name": "Boydston #2"
-  },
-  {
-   "id": "boydston-3",
-   "name": "Boydston #3"
-  },
-  {
-   "id": "shull-35",
-   "name": "Shull 35"
-  },
-  {
-   "id": "shull-25",
-   "name": "Shull 25"
-  },
-  {
-   "id": "martin",
-   "name": "Martin"
-  },
-  {
-   "id": "caster",
-   "name": "Caster 36"
+  "days": {
+    "2026-10-23": {
+      "speed-goat": {
+        "suction": 58.4,
+        "rpm": 1061
+      },
+      "timbro-01": {
+        "suction": 42,
+        "rpm": 1550
+      },
+      "b-fed": {
+        "suction": 59,
+        "rpm": 1650
+      },
+      "timbro-1931": {
+        "suction": 58,
+        "rpm": 1720
+      },
+      "fiscus": {
+        "suction": 64,
+        "rpm": 1760
+      },
+      "bringelson-13-20": {
+        "suction": 55,
+        "rpm": 1550
+      }
+    }
   }
- ],
- "fields": {
-  "suction": {
-   "label": "Suction",
-   "unit": "psi",
-   "max": 100
-  },
-  "rpm": {
-   "label": "RPM",
-   "unit": "rpm",
-   "max": 1800
-  }
- },
- "days": {
-  "2026-10-23": {
-   "speed-goat": {
-    "suction": 58.4,
-    "rpm": 1061
-   },
-   "timbro-01": {
-    "suction": 42,
-    "rpm": 1550
-   }
-  }
- }
 }
