@@ -1,5 +1,5 @@
 /* Compressor Log service worker (scope /compressors/): shell cache-first, data network-first. */
-const VERSION = "cp-v1.4";
+const VERSION = "cp-v1.5";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "data/compressors.json",
   "../fonts/Orbitron.ttf", "../fonts/RobotoCondensed.ttf", "../icons/icon-192.png", "../icons/apple-touch-icon.png"];
 self.addEventListener("install", e => {

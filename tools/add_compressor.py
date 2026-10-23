@@ -72,12 +72,21 @@ def save(db, path):
     os.replace(tmp, path)
 
 
+def carried(db, date, cid):
+    """Set points carry forward: per field, newest value on or before date -> {field: (value, set_date)}."""
+    out = {}
+    for d in sorted(db["days"]):
+        if d > date: break
+        for k, v in (db["days"][d].get(cid) or {}).items():
+            out[k] = (v, d)
+    return out
+
+
 def show(db, date):
-    day = db["days"].get(date, {})
-    lines = [f"Compressors {date}"]
+    lines = [f"Compressors {date} (carried forward)"]
     for c in db["compressors"]:
-        r = day.get(c["id"])
-        lines.append(f"  {c['name']:<16} " + (" ".join(f"{k} {v}" for k, v in r.items()) if r else "—"))
+        r = carried(db, date, c["id"])
+        lines.append(f"  {c['name']:<16} " + (" ".join(f"{k} {v} (set {d[5:]})" if d != date else f"{k} {v}" for k, (v, d) in r.items()) if r else "—"))
     return "\n".join(lines)
 
 

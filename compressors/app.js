@@ -11,10 +11,21 @@ let local = loadJSON(K_LOCAL) || {};   // "date|id" -> {suction, rpm, ts} edits 
 function saveLocal(){ localStorage.setItem(K_LOCAL, JSON.stringify(local)); }
 function sharedRow(date,id){ return ((db&&db.days[date])||{})[id] || null; }
 function localRow(date,id){ return local[date+"|"+id] || null; }
-function merged(date,id){ const s=sharedRow(date,id), l=localRow(date,id); if(!s&&!l) return null;
-  const r=Object.assign({}, s||{}); if(l) for(const k of Object.keys(fields())) if(typeof l[k]==="number") r[k]=l[k]; return r; }
+/* Set points carry forward: per field, the newest value on or before `date`.
+   Same day: a phone edit beats the shared file. Returns {suction, rpm, ..., _set:{field:date}, _local:bool} or null. */
+function carried(date,id,sharedOnly){
+  const r={}, set={}, from={}; let any=false;
+  const consider=(d,row,isLocal)=>{ if(!row||d>date) return;
+    for(const k of Object.keys(fields())){ if(typeof row[k]!=="number") continue;
+      if(!(k in set) || d>set[k] || (d===set[k] && isLocal)){ r[k]=row[k]; set[k]=d; from[k]=isLocal; any=true; } } };
+  if(db) for(const [d,day] of Object.entries(db.days)) consider(d,day[id],false);
+  if(!sharedOnly) for(const [k,l] of Object.entries(local)){ const [d,lid]=k.split("|"); if(lid===id) consider(d,l,true); }
+  if(!any) return null;
+  r._set=set; r._local=Object.values(from).some(Boolean); return r;
+}
+function merged(date,id){ return carried(date,id,false); }
 function pruneLocal(){ let ch=false;
-  for(const [k,l] of Object.entries(local)){ const [d,id]=k.split("|"), s=sharedRow(d,id);
+  for(const [k,l] of Object.entries(local)){ const [d,id]=k.split("|"), s=carried(d,id,true);
     if(s && Object.keys(fields()).every(f=>typeof l[f]!=="number" || s[f]===l[f])){ delete local[k]; ch=true; } }
   if(ch) saveLocal(); }
 
@@ -87,7 +98,7 @@ function render(){
   document.title=`Compressors · ${shortDate(cur)}`;
   const v=$("#view"); if(!db){ v.innerHTML=""; return; }
   v.style.gridTemplateRows=`repeat(${Math.ceil(db.compressors.length/2)},minmax(0,1fr))`;
-  v.innerHTML=db.compressors.map((c,i)=>{ const r=merged(cur,c.id)||{}, lc=!!localRow(cur,c.id);
+  v.innerHTML=db.compressors.map((c,i)=>{ const r=merged(cur,c.id)||{}, lc=!!(r._local);
     return `<section class="card" data-id="${esc(c.id)}"><span class="accent"></span>
       <div class="name"><b>${i+1}</b>${esc(c.name.toUpperCase())}${lc?' <span class="lbadge">LOCAL</span>':""}</div>
       <div class="body">${pkg(r.rpm)}<div class="gauges">${gauge("suc","suction",r.suction)}${gauge("rpm","rpm",r.rpm)}</div></div></section>`; }).join("");
@@ -131,7 +142,7 @@ $("#fSave").onclick=()=>{
   const d=$("#fDate").value, suc=numOrNull($("#fSuc")), rpm=numOrNull($("#fRpm"));
   if(!d) return toast("Pick a date"); if(Number.isNaN(suc)||Number.isNaN(rpm)) return toast("Numbers only");
   if(suc===null&&rpm===null) return toast("Enter suction or RPM");
-  const s=sharedRow(d,fId)||{}, k=d+"|"+fId, l={ts:new Date().toISOString()};
+  const k=d+"|"+fId, s=(()=>{ const o=local[k]; delete local[k]; const c=carried(d,fId,false)||{}; if(o) local[k]=o; return c; })(), l={ts:new Date().toISOString()};
   if(suc!==null) l.suction=suc; if(rpm!==null) l.rpm=rpm;
   if((suc===null||s.suction===suc)&&(rpm===null||s.rpm===rpm)) delete local[k]; else local[k]=l;
   saveLocal(); $("#sheet").hidden=true; cur=d; render();
