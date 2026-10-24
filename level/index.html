@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Bubble Level</title>
+<meta name="theme-color" content="#04080f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Level">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="preload" href="../fonts/Orbitron.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="hdr">
+    <div class="topline"><span></span></div>
+    <a class="chip link" href="../">&#8249; Tanks</a>
+    <h1>LEVEL</h1>
+    <div id="mode" class="sub">TAP START</div>
+  </header>
+
+  <main id="stage">
+    <div id="readout" class="readout">
+      <div class="big"><span id="vMain">0.0</span><small>°</small></div>
+      <div id="xy" class="xy"><span>X <b id="vX">0.0°</b></span><span>Y <b id="vY">0.0°</b></span></div>
+    </div>
+
+    <svg id="flat" class="flat" viewBox="-110 -110 220 220" aria-hidden="true">
+      <circle class="face" r="104"/>
+      <circle class="ring" r="78"/><circle class="ring" r="52"/><circle class="ring" r="26"/>
+      <line class="cross" x1="-104" y1="0" x2="104" y2="0"/><line class="cross" x1="0" y1="-104" x2="0" y2="104"/>
+      <circle class="target" r="13"/>
+      <g id="bubbleF" class="bubble"><circle r="12"/><circle class="shine" cx="-4" cy="-4" r="3.5"/></g>
+    </svg>
+
+    <svg id="edge" class="edge" viewBox="-170 -40 340 80" aria-hidden="true" hidden>
+      <rect class="tube" x="-160" y="-26" width="320" height="52" rx="26"/>
+      <line class="mark" x1="-20" y1="-26" x2="-20" y2="26"/><line class="mark" x1="20" y1="-26" x2="20" y2="26"/>
+      <line class="tick" x1="-80" y1="-26" x2="-80" y2="-14"/><line class="tick" x1="80" y1="-26" x2="80" y2="-14"/>
+      <line class="tick" x1="-80" y1="26" x2="-80" y2="14"/><line class="tick" x1="80" y1="26" x2="80" y2="14"/>
+      <g id="bubbleE" class="bubble"><rect x="-19" y="-16" width="38" height="32" rx="16"/><ellipse class="shine" cx="-6" cy="-7" rx="7" ry="3"/></g>
+    </svg>
+    <div id="hint" class="hint">Lay flat for bullseye · stand on an edge for the vial</div>
+  </main>
+
+  <div class="btnrow">
+    <button id="zeroBtn" class="chip big">Zero</button>
+    <button id="resetBtn" class="chip big">Reset cal</button>
+    <button id="holdBtn" class="chip big">Hold</button>
+  </div>
+</div>
+
+<div id="startSheet" class="start">
+  <button id="startBtn" class="startbtn">Start level</button>
+  <p id="startMsg">Uses the phone's motion sensor. iPhone will ask to allow Motion &amp; Orientation.</p>
+</div>
+<div id="toast" class="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
