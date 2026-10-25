@@ -53,7 +53,7 @@ function statusText(){
   if(!db) return online===false ? "Offline — no saved data yet" : "Loading…";
   const t = fetchedAt ? new Date(fetchedAt) : null;
   const ts = t ? t.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) + (ymd(t)!==todayStr() ? " "+shortDate(ymd(t)) : "") : "";
-  return online ? `Synced ${ts}` : `Offline — saved data from ${ts}`;
+  return online ? `✓ ${ts}` : `Offline ${ts}`;
 }
 
 /* ---------- merge shared + local ---------- */
@@ -152,10 +152,11 @@ const K_BB="tg_bb_v1"; let bbLocal=loadJSON(K_BB)||{};   // date -> {v, ts} save
 function bbShared(date){ for(const g of ((db&&db.days[date])||[])) if(typeof g.buyback==="number") return g.buyback; return null; }
 function bbFor(date){ const l=bbLocal[date]; if(l) return {v:l.v, local:true}; const s=bbShared(date); return {v:s==null?0:s, local:false}; }
 function pruneBB(){ let ch=false; for(const d of Object.keys(bbLocal)){ if(bbShared(d)===bbLocal[d].v){ delete bbLocal[d]; ch=true; } } if(ch) localStorage.setItem(K_BB,JSON.stringify(bbLocal)); }
-function bbBadge(){ const b=bbFor(cur); return `<button class="bb${b.v?"":" zero"}" id="bbBtn" aria-label="Buyback number">BB <b>${b.v}</b>${b.local?'<span class="lbadge">L</span>':""}</button>`; }
+function bbBadge(){ const el=$("#bbBtn"); if(!el) return; const b=db?bbFor(cur):{v:0,local:false};
+  el.innerHTML=`BB ${b.v}${b.local?'<span class="lbadge">L</span>':""}`; el.classList.toggle("zero",!b.v); }
 function haulHtml(){
   const hs=haulsFor(cur);
-  return `<div class="hauls-h">WATER HAULED${bbBadge()}</div><div class="hauls">`+haulers().map(h=>{
+  return `<div class="hauls-h">WATER HAULED</div><div class="hauls">`+haulers().map(h=>{
     const v=hs[h.id], has=typeof v==="number", pct=has?100:0;
     return `<section class="card haul"><span class="accent"></span><div class="hh"><span class="hn">${esc(h.name.toUpperCase())}</span>
       <span class="hv${has?"":" none"}">${has?`${bbl(v)} bbl`:"— bbl"}</span></div>${semiSvg(h.id,pct,has)}</section>`;
@@ -174,7 +175,7 @@ function render(animate=true){
   history.replaceState(null,"", cur===todayStr() ? location.pathname : "#"+cur);
 
   const nLocal=Object.keys(local).length;
-  $("#copyLocal").textContent = "Copy";
+  $("#copyLocal").textContent = "Copy"; bbBadge();
 
   const v=$("#view");
   if(!db){ $("#subtitle").textContent="—"; v.innerHTML=`<div class="empty-day">${online===false?"No connection and no saved data yet.<br>Open once with signal.":"Loading…"}</div>`; return; }
