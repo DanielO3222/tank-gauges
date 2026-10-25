@@ -42,7 +42,7 @@ async function refresh(manual){
     if(!j.days || !j.leases) throw new Error("bad data file");
     db = j; fetchedAt = new Date().toISOString(); online = true;
     localStorage.setItem(K_CACHE, JSON.stringify({db, fetchedAt}));
-    pruneLocal();
+    pruneLocal(); pruneBB();
   }catch(e){
     online = false;
     if(!db){ const c = loadJSON(K_CACHE); if(c){ db=c.db; fetchedAt=c.fetchedAt; } }
@@ -147,9 +147,15 @@ function semiSvg(id,pct,has){
   <g class="wheels">${wheel(17)}${wheel(52)}${wheel(66)}${wheel(207)}${wheel(221)}${wheel(235)}</g>
  </svg>`;
 }
+/* ---------- buyback (BB): daily whole number, no carry-forward ---------- */
+const K_BB="tg_bb_v1"; let bbLocal=loadJSON(K_BB)||{};   // date -> {v, ts} saved on this phone only
+function bbShared(date){ for(const g of ((db&&db.days[date])||[])) if(typeof g.buyback==="number") return g.buyback; return null; }
+function bbFor(date){ const l=bbLocal[date]; if(l) return {v:l.v, local:true}; const s=bbShared(date); return {v:s==null?0:s, local:false}; }
+function pruneBB(){ let ch=false; for(const d of Object.keys(bbLocal)){ if(bbShared(d)===bbLocal[d].v){ delete bbLocal[d]; ch=true; } } if(ch) localStorage.setItem(K_BB,JSON.stringify(bbLocal)); }
+function bbBadge(){ const b=bbFor(cur); return `<button class="bb${b.v?"":" zero"}" id="bbBtn" aria-label="Buyback number">BB <b>${b.v}</b>${b.local?'<span class="lbadge">L</span>':""}</button>`; }
 function haulHtml(){
   const hs=haulsFor(cur);
-  return `<div class="hauls-h">WATER HAULED</div><div class="hauls">`+haulers().map(h=>{
+  return `<div class="hauls-h">WATER HAULED${bbBadge()}</div><div class="hauls">`+haulers().map(h=>{
     const v=hs[h.id], has=typeof v==="number", pct=has?100:0;
     return `<section class="card haul"><span class="accent"></span><div class="hh"><span class="hn">${esc(h.name.toUpperCase())}</span>
       <span class="hv${has?"":" none"}">${has?`${bbl(v)} bbl`:"— bbl"}</span></div>${semiSvg(h.id,pct,has)}</section>`;
@@ -230,6 +236,7 @@ function dayText(){
   let s=`Tank gauges — ${WD[d.getDay()]} ${longDate(cur)}\n`;
   for(const g of groups){ s+=`${leaseName(g.lease)}\n`; for(const r of g.rows) s+=`${r.loc} oil ${cf(r.oil&&r.oil.v)} water ${cf(r.water&&r.water.v)}\n`; }
   const hl=haulLines().filter(([,v])=>typeof v==="number"); if(hl.length){ s+="Water hauled\n"; for(const [h,v] of hl) s+=`${h.name} ${bbl(v)} bbl\n`; }
+  s+=`BB ${bbFor(cur).v}\n`;
   return s;
 }
 async function copy(text,msg){
@@ -253,6 +260,7 @@ document.addEventListener("click",e=>{
   const g=e.target.closest("[data-go]"); if(g) return go(g.dataset.go);
   const ed=e.target.closest("[data-edit]"); if(ed){ const [l,loc,t]=ed.dataset.edit.split("|"); return openForm(l,loc,t); }
   if(e.target.id==="copyDay") copy(dayText(),"Day copied");
+  if(e.target.closest("#bbBtn")) return openBB();
 });
 $("#copyLocal").onclick=()=>copy(dayText(),"Day copied");
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
@@ -304,6 +312,15 @@ $("#fSave").onclick=()=>{
 };
 $("#fDelete").onclick=()=>{ delete local[lkey($("#fDate").value,$("#fLease").value,formLoc(),fTank)]; localStorage.setItem(K_LOCAL, JSON.stringify(local)); $("#sheet").hidden=true; render(false); };
 $("#addBtn").onclick=()=>openForm();
+function openBB(){ const b=bbFor(cur); $("#bbDate").textContent=`${WD[parseYmd(cur).getDay()]}, ${longDate(cur)}`;
+  $("#bbIn").value=b.v||""; $("#bbDel").hidden=!bbLocal[cur]; $("#bbSheet").hidden=false; setTimeout(()=>$("#bbIn").focus(),50); }
+$("#bbCancel").onclick=()=>$("#bbSheet").hidden=true;
+$("#bbSheet").onclick=e=>{ if(e.target.id==="bbSheet") $("#bbSheet").hidden=true; };
+$("#bbSave").onclick=()=>{ const t=$("#bbIn").value.trim(), n=t===""?0:Number(t);
+  if(!Number.isInteger(n)||n<0) return toast("Whole number only");
+  const s=bbShared(cur); if((s==null?0:s)===n) delete bbLocal[cur]; else bbLocal[cur]={v:n,ts:new Date().toISOString()};
+  localStorage.setItem(K_BB,JSON.stringify(bbLocal)); $("#bbSheet").hidden=true; render(false); toast(`BB ${n} saved on phone`); };
+$("#bbDel").onclick=()=>{ delete bbLocal[cur]; localStorage.setItem(K_BB,JSON.stringify(bbLocal)); $("#bbSheet").hidden=true; render(false); toast("Local BB removed"); };
 
 /* ---------- share PNG (canvas copy of the dashboard, 1080 wide) ---------- */
 $("#shareBtn").onclick=async()=>{
@@ -364,6 +381,7 @@ async function drawPng(groups){
   // water hauled: two semis (same SVG as the app, rasterized)
   const hy=top+nrows*rowh, hs=haulsFor(cur), hl=haulers();
   x.textAlign="left"; x.font="700 26px Orbitron"; x.fillStyle="#a0e6ff"; glow("rgba(90,220,255,.4)",6); x.fillText("WATER HAULED",gap,hy+14); noglow();
+  { const b=bbFor(cur); x.textAlign="right"; x.font="700 30px Orbitron"; x.fillStyle=b.v?CY:"#4a6a80"; glow(CY,b.v?8:0); x.fillText(`BB ${b.v}${b.local?"*":""}`,W-gap,hy+14); noglow(); x.textAlign="left"; }
   for(let i=0;i<hl.length&&i<2;i++){
     const h=hl[i], v=hs[h.id], has=typeof v==="number", cx=gap+i*(cw+gap), cy=hy+36, x2=cx+cw, y2=cy+196, k=22;
     x.strokeStyle="#288cc8"; x.lineWidth=2; glow("#288cc8",8); x.beginPath();

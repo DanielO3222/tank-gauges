@@ -63,13 +63,39 @@ def set_haul(db, date, lease, hauler, bbl, force=False):
     return prev
 
 
+def set_buyback(db, date, lease, n):
+    """Daily buyback (BB) count; does not carry forward. Stored on the lease group as "buyback"."""
+    datetime.date.fromisoformat(date)
+    if n < 0:
+        raise ValueError(f"buyback must be 0 or more, got {n}")
+    lid = ensure_lease(db, lease)
+    groups = db["days"].setdefault(date, [])
+    g = next((g for g in groups if g["lease"] == lid), None)
+    if g is None:
+        g = {"lease": lid, "locations": []}
+        groups.append(g)
+    prev = g.get("buyback")
+    g["buyback"] = int(n)
+    return prev
+
+
+def delete_buyback(db, date):
+    groups = db["days"].get(date, [])
+    for g in list(groups):
+        g.pop("buyback", None)
+        if not g["locations"] and not g.get("hauls"):
+            groups.remove(g)
+    if not groups:
+        db["days"].pop(date, None)
+
+
 def delete_haul(db, date, hauler):
     hid = hauler_id(hauler)
     groups = db["days"].get(date, [])
     for g in list(groups):
         if g.get("hauls", {}).pop(hid, None) is not None and not g["hauls"]:
             del g["hauls"]
-        if not g["locations"] and not g.get("hauls"):
+        if not g["locations"] and not g.get("hauls") and "buyback" not in g:
             groups.remove(g)
     if not groups:
         db["days"].pop(date, None)
@@ -173,7 +199,7 @@ def delete_reading(db, date, lease, loc, tank=None):
                     r.pop(tank, None)
                 if not tank or not any(r.get(t) for t in TANKS):
                     g["locations"].remove(r)
-        if not g["locations"] and not g.get("hauls"):
+        if not g["locations"] and not g.get("hauls") and "buyback" not in g:
             groups.remove(g)
     if not groups:
         db["days"].pop(date, None)
@@ -193,4 +219,6 @@ def day_table(db, date):
         for hid, v in g.get("hauls", {}).items():
             h = names.get(hid, {"name": hid})
             out.append(f"  haul {h['name']:<10} {v:,} bbl")
+        if "buyback" in g:
+            out.append(f"  BB {g['buyback']}")
     return "\n".join(out) or f"(no readings for {date})"

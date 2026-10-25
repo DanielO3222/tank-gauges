@@ -7,6 +7,8 @@ Examples:
   add_reading.py --batch "14-20 oil 8 11; 14-20 water 6 1; 16-20 oil 13 6"
   add_reading.py --batch "B-Fed haul 1250; Timbro 01 haul 840"        # daily total bbl hauled
   add_reading.py --delete-haul "B-Fed" --date 2026-10-22
+  add_reading.py --date 2026-10-25 --batch "bb 9"                     # daily buyback (also "buyback 9")
+  add_reading.py --delete-bb --date 2026-10-25
   add_reading.py --lease "Speed Goat" --loc 3-20 --tank water --ft 4 --in 2
   add_reading.py --delete --date 2026-10-15 --loc 9-20 --tank oil
   add_reading.py --show --date 2026-10-15
@@ -22,6 +24,10 @@ def parse_batch(s):
     for part in re.split(r"[;\n]", s):
         part = part.strip()
         if not part:
+            continue
+        b = re.fullmatch(r"(?:bb|buy\s*-?\s*back)\s+(\d+)", part, re.I)
+        if b:
+            items.append(("bb", "bb", int(b.group(1)), 0))
             continue
         h = re.fullmatch(r"(b\s*-?\s*fed|timbro(?:\s*-?\s*(?:0?1|1931))?)\s+haul(?:ed|s)?\s+(\d[\d,]*)(?:\s*(?:bbls?|barrels?))?", part, re.I)
         if h:
@@ -46,6 +52,7 @@ def main():
     p.add_argument("--batch", help="'LOC TANK FT IN; ...'")
     p.add_argument("--delete", action="store_true")
     p.add_argument("--show", action="store_true")
+    p.add_argument("--delete-bb", action="store_true", help="remove a day's buyback (BB) number")
     p.add_argument("--delete-haul", metavar="HAULER", help="remove a day's haul (B-Fed / Timbro 01)")
     p.add_argument("--route", nargs=2, metavar=("LEASE", "LOC,LOC,..."), help="set a lease's route order")
     p.add_argument("--force", action="store_true", help="allow readings above max_ft")
@@ -61,6 +68,9 @@ def main():
         lid = gl.ensure_lease(db, a.route[0])
         db["leases"][lid]["route"] = [x.strip() for x in a.route[1].split(",") if x.strip()]
         gl.save(db, a.file); print(f"route for {lid}: {db['leases'][lid]['route']}"); return
+    if a.delete_bb:
+        gl.delete_buyback(db, date)
+        gl.save(db, a.file); print(gl.day_table(db, date)); return
     if a.delete_haul:
         gl.delete_haul(db, date, a.delete_haul)
         gl.save(db, a.file); print(gl.day_table(db, date)); return
@@ -77,6 +87,10 @@ def main():
     if not items:
         p.error("nothing to do")
     for loc, tank, ft, inch in items:
+        if loc == "bb":
+            prev = gl.set_buyback(db, date, lease, ft)
+            print(f"{date} BB = {ft}" + (f" (was {prev})" if prev is not None else ""))
+            continue
         if loc == "haul":
             try:
                 prev = gl.set_haul(db, date, lease, tank, ft, force=a.force)

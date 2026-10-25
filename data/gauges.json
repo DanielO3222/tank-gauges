@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-10-22T08:04:47-06:00",
+ "updated": "2026-10-25T08:22:12-06:00",
  "max_ft": 20,
  "default_lease": "bringelson",
  "leases": {
@@ -418,6 +418,13 @@
     "hauls": {
      "timbro-01": 185
     }
+   }
+  ],
+  "2026-10-25": [
+   {
+    "lease": "bringelson",
+    "locations": [],
+    "buyback": 9
    }
   ]
  },

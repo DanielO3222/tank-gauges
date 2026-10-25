@@ -83,6 +83,18 @@
     <div class="btns"><a id="shotDl" class="chip" download>Download</a><button id="shotClose" class="chip primary">Close</button></div>
   </div>
 </div>
+<div id="bbSheet" class="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-label="Buyback number">
+    <h2>Buyback (BB)</h2>
+    <p class="hint"><span id="bbDate"></span> · starts at 0 each day. Saved on this phone only (marked <b class="lbadge">L</b>) until it's in the shared file.</p>
+    <div class="row"><label for="bbIn">BB</label><input id="bbIn" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off" class="bbin"></div>
+    <div class="btns">
+      <button id="bbCancel" class="chip">Cancel</button>
+      <button id="bbDel" class="chip warn" hidden>Remove local</button>
+      <button id="bbSave" class="chip primary">Save</button>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast" hidden></div>
 <script src="app.js"></script>
 </body>
