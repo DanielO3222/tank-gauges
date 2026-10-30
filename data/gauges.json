@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-10-25T08:22:12-06:00",
+ "updated": "2026-10-30T09:27:17-06:00",
  "max_ft": 20,
  "default_lease": "bringelson",
  "default_route": "route-3",
@@ -15,6 +15,8 @@
   "route-2": {
    "name": "Route 2",
    "leases": [
+    "shull",
+    "caster",
     "route-2"
    ],
    "hauls": false
@@ -37,6 +39,23 @@
   "route-2": {
    "name": "Route 2",
    "route": []
+  },
+  "shull": {
+   "name": "Shull",
+   "route": [
+    "5-25",
+    "6-25",
+    "7-25",
+    "1-35",
+    "2-35"
+   ]
+  },
+  "caster": {
+   "name": "Caster",
+   "route": [
+    "2-36",
+    "3-36"
+   ]
   }
  },
  "haulers": [
