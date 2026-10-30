@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-10-30T09:36:56-06:00",
+ "updated": "2026-10-30T10:50:09-06:00",
  "max_ft": 20,
  "default_lease": "bringelson",
  "default_route": "route-3",
@@ -481,6 +481,17 @@
    {
     "lease": "shull",
     "locations": [
+     {
+      "loc": "7-25",
+      "oil": {
+       "ft": 12,
+       "in": 9
+      },
+      "water": {
+       "ft": 8,
+       "in": 2
+      }
+     },
      {
       "loc": "1-35",
       "oil": {
