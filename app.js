@@ -14,6 +14,28 @@ let local = loadJSON(K_LOCAL) || {};          // key "date|lease|loc|tank" -> {f
 let view = localStorage.getItem(K_VIEW) || "tanks";
 let cur = initialDate();
 
+/* ---------- routes: each route = a list of leases (tank lists live in leases[id].route) ---------- */
+const K_ROUTE="tg_route";
+let route = localStorage.getItem(K_ROUTE) || "route-3";
+const DEF_ROUTES={"route-3":{name:"Route 3",leases:["bringelson"],hauls:true},"route-2":{name:"Route 2",leases:["route-2"],hauls:false}};
+function routes(){ return (db&&db.routes)||DEF_ROUTES; }
+function routeCfg(){ return routes()[route] || routes()["route-3"] || Object.values(routes())[0]; }
+function routeLeases(){ return routeCfg().leases||[]; }
+function routeName(){ return routeCfg().name||route; }
+function inRoute(lease){ return routeLeases().includes(lease); }
+function routeHasTanks(){ return routeLeases().some(l=>routeOf(l).length); }
+function setRoute(r){ route=r; localStorage.setItem(K_ROUTE,r); render(true); }
+/* one-time migration (v1.9.3): back up old localStorage, move phone BB edits under Route 3 */
+(function migrate(){
+  if(localStorage.getItem("tg_migrated_routes")) return;
+  const stamp=new Date().toISOString().slice(0,19);
+  for(const k of ["tg_local_v1","tg_bb_v1","tg_cache_v1","tg_view"]){ const v=localStorage.getItem(k); if(v!=null) localStorage.setItem(`tg_backup_${stamp}_${k}`,v); }
+  const oldBB=loadJSON("tg_bb_v1");
+  if(oldBB && Object.keys(oldBB).length){ const nb=loadJSON("tg_bb_v2")||{}; nb["route-3"]=Object.assign({},oldBB,nb["route-3"]||{}); localStorage.setItem("tg_bb_v2",JSON.stringify(nb)); }
+  // tank edits are keyed by lease ("date|bringelson|loc|tank"), and Bringelson is Route 3, so they stay as-is
+  localStorage.setItem("tg_migrated_routes",stamp);
+})();
+
 function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 function ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function parseYmd(s){ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); }
@@ -75,11 +97,12 @@ function routeOf(lease){ return (db.leases[lease] && db.leases[lease].route) || 
 function dayGroups(date){
   const map = new Map();
   for(const g of (db.days[date]||[])){
+    if(!inRoute(g.lease)) continue;
     const m = new Map(); map.set(g.lease, m);
     for(const r of g.locations) m.set(r.loc, {loc:r.loc, oil:r.oil?{v:r.oil}:null, water:r.water?{v:r.water}:null});
   }
   for(const [k,v] of Object.entries(local)){
-    const [d,l,loc,t]=k.split("|"); if(d!==date) continue;
+    const [d,l,loc,t]=k.split("|"); if(d!==date || !inRoute(l)) continue;
     if(!map.has(l)) map.set(l,new Map());
     const m=map.get(l); if(!m.has(loc)) m.set(loc,{loc,oil:null,water:null});
     m.get(loc)[t] = {v:{ft:v.ft,in:v.in}, local:true};
@@ -88,7 +111,7 @@ function dayGroups(date){
   for(const [lease,m] of map){
     const route=routeOf(lease), idx=new Map(route.map((l,i)=>[l,i]));
     const rows=[...m.values()].sort((a,b)=>(idx.has(a.loc)?idx.get(a.loc):1e6)-(idx.has(b.loc)?idx.get(b.loc):1e6)||a.loc.localeCompare(b.loc,undefined,{numeric:true}));
-    out.push({lease, rows});
+    if(rows.length) out.push({lease, rows});
   }
   // lease order: as listed in the file
   const order=Object.keys(db.leases); out.sort((a,b)=>order.indexOf(a.lease)-order.indexOf(b.lease));
@@ -105,7 +128,8 @@ function prevReading(date,lease,loc,tank){ // most recent earlier day with this 
   return null;
 }
 function gaugedDays(){
-  const s=new Set(Object.keys(db.days)); for(const k of Object.keys(local)) s.add(k.split("|")[0]);
+  const s=new Set(Object.keys(db.days).filter(d=>(db.days[d]||[]).some(g=>inRoute(g.lease)&&g.locations.length)));
+  for(const k of Object.keys(local)){ const [d,l]=k.split("|"); if(inRoute(l)) s.add(d); }
   return [...s].sort();
 }
 
@@ -113,7 +137,7 @@ function gaugedDays(){
 const DEF_HAULERS=[{id:"b-fed",name:"B-Fed"},{id:"timbro-01",name:"Timbro 1931"}];
 function bbl(n){ return Math.round(n).toLocaleString("en-US"); }
 function haulers(){ return (db && db.haulers && db.haulers.length) ? db.haulers : DEF_HAULERS; }
-function haulsFor(date){ const o={}; for(const g of (db.days[date]||[])) if(g.hauls) Object.assign(o,g.hauls); return o; }
+function haulsFor(date){ const o={}; for(const g of (db.days[date]||[])) if(g.hauls && inRoute(g.lease)) Object.assign(o,g.hauls); return o; }
 const TK={x:60,y:12,w:192,h:28};
 function semiSvg(id,pct,has){
   const c="h-"+id.replace(/[^a-z0-9]/gi,""), dy=(TK.h*(1-pct/100)).toFixed(2);
@@ -148,10 +172,13 @@ function semiSvg(id,pct,has){
  </svg>`;
 }
 /* ---------- buyback (BB): daily whole number, no carry-forward ---------- */
-const K_BB="tg_bb_v1"; let bbLocal=loadJSON(K_BB)||{};   // date -> {v, ts} saved on this phone only
-function bbShared(date){ for(const g of ((db&&db.days[date])||[])) if(typeof g.buyback==="number") return g.buyback; return null; }
-function bbFor(date){ const l=bbLocal[date]; if(l) return {v:l.v, local:true}; const s=bbShared(date); return {v:s==null?0:s, local:false}; }
-function pruneBB(){ let ch=false; for(const d of Object.keys(bbLocal)){ if(bbShared(d)===bbLocal[d].v){ delete bbLocal[d]; ch=true; } } if(ch) localStorage.setItem(K_BB,JSON.stringify(bbLocal)); }
+const K_BB="tg_bb_v2"; let bbAll=loadJSON(K_BB)||{};   // route -> date -> {v, ts} saved on this phone only
+function bbL(r){ return bbAll[r||route] || (bbAll[r||route]={}); }
+function saveBB(){ localStorage.setItem(K_BB,JSON.stringify(bbAll)); }
+function bbShared(date,r){ const ls=(routes()[r||route]||{}).leases||[];
+  for(const g of ((db&&db.days[date])||[])) if(ls.includes(g.lease) && typeof g.buyback==="number") return g.buyback; return null; }
+function bbFor(date){ const l=bbL()[date]; if(l) return {v:l.v, local:true}; const s=bbShared(date); return {v:s==null?0:s, local:false}; }
+function pruneBB(){ let ch=false; for(const r of Object.keys(bbAll)) for(const d of Object.keys(bbAll[r])){ if(bbShared(d,r)===bbAll[r][d].v){ delete bbAll[r][d]; ch=true; } } if(ch) saveBB(); }
 function bbBadge(){ const el=$("#bbBtn"); if(!el) return; const b=db?bbFor(cur):{v:0,local:false};
   el.innerHTML=`BB ${b.v}${b.local?'<span class="lbadge">L</span>':""}`; el.classList.toggle("zero",!b.v); }
 function haulHtml(){
@@ -176,14 +203,21 @@ function render(animate=true){
 
   const nLocal=Object.keys(local).length;
   $("#copyLocal").textContent = "Copy"; bbBadge();
+  document.querySelectorAll("#routeSeg button").forEach(b=>{ const on=b.dataset.route===route; b.classList.toggle("on",on); b.setAttribute("aria-selected",on); });
 
   const v=$("#view");
   if(!db){ $("#subtitle").textContent="—"; v.innerHTML=`<div class="empty-day">${online===false?"No connection and no saved data yet.<br>Open once with signal.":"Loading…"}</div>`; return; }
   const groups=dayGroups(cur);
-  const leases=groups.map(g=>leaseName(g.lease).toUpperCase());
-  $("#subtitle").textContent = `${leases.length?leases.join(" / "):leaseName(db.default_lease).toUpperCase()} · ${longDate(cur).toUpperCase()}`;
-  document.title = `Tank Gauges · ${shortDate(cur)}`;
+  const leases=groups.map(g=>leaseName(g.lease).toUpperCase()), rl=routeLeases().filter(l=>routeOf(l).length).map(l=>leaseName(l).toUpperCase());
+  const ln=leases.length?leases:rl;
+  $("#subtitle").textContent = [routeName().toUpperCase(), ln.join(" / "), longDate(cur).toUpperCase()].filter(Boolean).join(" · ");
+  document.title = `Tank Gauges · ${routeName()} · ${shortDate(cur)}`;
 
+  if(!groups.length && !routeHasTanks()){
+    v.innerHTML=`<div class="empty-day route-empty"><div class="re-big">🛢️</div><b>${esc(routeName())} tanks coming soon</b><br>
+      Once the ${esc(routeName())} tank list is added, they'll show up here.<br>The BB # above still works for ${esc(routeName())}.</div>`;
+    return;
+  }
   if(!groups.length){
     const days=gaugedDays(), before=days.filter(x=>x<cur).pop(), after=days.find(x=>x>cur);
     v.innerHTML=`<div class="empty-day">No gauges logged for<br><b>${WD[d.getDay()]}, ${longDate(cur)}</b>.
@@ -216,7 +250,7 @@ function renderTanks(groups){
     h+=`<div class="grid">`+g.rows.map(r=>`<section class="card"><span class="accent"></span>
       <div class="loc">${esc(r.loc)}</div><div class="pair">${tankHtml(g.lease,r.loc,"oil",r.oil)}${tankHtml(g.lease,r.loc,"water",r.water)}</div></section>`).join("")+`</div>`;
   }
-  return h+haulHtml();
+  return h+(routeCfg().hauls?haulHtml():"");
 }
 function haulLines(){ const hs=haulsFor(cur); return haulers().map(h=>[h, hs[h.id]]); }
 function renderList(groups){
@@ -234,9 +268,9 @@ function renderList(groups){
 const cf=v=>fmt(v).replace(/' /g,"'");
 function dayText(){
   const groups=dayGroups(cur), d=parseYmd(cur);
-  let s=`Tank gauges — ${WD[d.getDay()]} ${longDate(cur)}\n`;
+  let s=`Tank gauges — ${routeName()} — ${WD[d.getDay()]} ${longDate(cur)}\n`;
   for(const g of groups){ s+=`${leaseName(g.lease)}\n`; for(const r of g.rows) s+=`${r.loc} oil ${cf(r.oil&&r.oil.v)} water ${cf(r.water&&r.water.v)}\n`; }
-  const hl=haulLines().filter(([,v])=>typeof v==="number"); if(hl.length){ s+="Water hauled\n"; for(const [h,v] of hl) s+=`${h.name} ${bbl(v)} bbl\n`; }
+  const hl=routeCfg().hauls?haulLines().filter(([,v])=>typeof v==="number"):[]; if(hl.length){ s+="Water hauled\n"; for(const [h,v] of hl) s+=`${h.name} ${bbl(v)} bbl\n`; }
   s+=`BB ${bbFor(cur).v}\n`;
   return s;
 }
@@ -274,9 +308,11 @@ let fTank="oil";
 function fillSelect(sel,vals,cur){ sel.innerHTML=vals.map(v=>`<option value="${esc(v[0])}"${v[0]==cur?" selected":""}>${esc(v[1])}</option>`).join(""); }
 function openForm(lease,loc,tank){
   if(!db) return toast("No data loaded yet");
-  lease=lease||db.default_lease;
+  if(!routeHasTanks()) return toast(`${routeName()} tanks aren't set up yet`);
+  const rls=routeLeases().filter(l=>db.leases[l]);
+  lease=lease||(rls.includes(db.default_lease)?db.default_lease:rls[0]);
   $("#fDate").value=cur;
-  fillSelect($("#fLease"), Object.keys(db.leases).map(k=>[k,db.leases[k].name]), lease);
+  fillSelect($("#fLease"), rls.map(k=>[k,db.leases[k].name]), lease);
   const locs=[...new Set([...routeOf(lease), ...(dayGroups(cur).find(g=>g.lease===lease)||{rows:[]}).rows.map(r=>r.loc)])];
   if(!loc){ // first location in route missing a reading today
     const g=dayGroups(cur).find(g=>g.lease===lease);
@@ -313,15 +349,16 @@ $("#fSave").onclick=()=>{
 };
 $("#fDelete").onclick=()=>{ delete local[lkey($("#fDate").value,$("#fLease").value,formLoc(),fTank)]; localStorage.setItem(K_LOCAL, JSON.stringify(local)); $("#sheet").hidden=true; render(false); };
 $("#addBtn").onclick=()=>openForm();
+$("#routeSeg").onclick=e=>{ const b=e.target.closest("button[data-route]"); if(b && b.dataset.route!==route) setRoute(b.dataset.route); };
 function openBB(){ const b=bbFor(cur); $("#bbDate").textContent=`${WD[parseYmd(cur).getDay()]}, ${longDate(cur)}`;
-  $("#bbIn").value=b.v||""; $("#bbDel").hidden=!bbLocal[cur]; $("#bbSheet").hidden=false; setTimeout(()=>$("#bbIn").focus(),50); }
+  $("#bbIn").value=b.v||""; $("#bbDel").hidden=!bbL()[cur]; $("#bbSheet").hidden=false; setTimeout(()=>$("#bbIn").focus(),50); }
 $("#bbCancel").onclick=()=>$("#bbSheet").hidden=true;
 $("#bbSheet").onclick=e=>{ if(e.target.id==="bbSheet") $("#bbSheet").hidden=true; };
 $("#bbSave").onclick=()=>{ const t=$("#bbIn").value.trim(), n=t===""?0:Number(t);
   if(!Number.isInteger(n)||n<0) return toast("Whole number only");
-  const s=bbShared(cur); if((s==null?0:s)===n) delete bbLocal[cur]; else bbLocal[cur]={v:n,ts:new Date().toISOString()};
-  localStorage.setItem(K_BB,JSON.stringify(bbLocal)); $("#bbSheet").hidden=true; render(false); toast(`BB ${n} saved on phone`); };
-$("#bbDel").onclick=()=>{ delete bbLocal[cur]; localStorage.setItem(K_BB,JSON.stringify(bbLocal)); $("#bbSheet").hidden=true; render(false); toast("Local BB removed"); };
+  const s=bbShared(cur); if((s==null?0:s)===n) delete bbL()[cur]; else bbL()[cur]={v:n,ts:new Date().toISOString()};
+  saveBB(); $("#bbSheet").hidden=true; render(false); toast(`BB ${n} saved on phone`); };
+$("#bbDel").onclick=()=>{ delete bbL()[cur]; saveBB(); $("#bbSheet").hidden=true; render(false); toast("Local BB removed"); };
 
 /* ---------- share PNG (canvas copy of the dashboard, 1080 wide) ---------- */
 $("#shareBtn").onclick=async()=>{
@@ -431,5 +468,5 @@ window.addEventListener("pageshow",()=>refresh());
 window.addEventListener("online",()=>refresh());
 setInterval(()=>{ if(document.visibilityState==="visible") refresh(); },60000);
 if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
-window.TG={ get db(){return db;}, go, dayText, png:()=>drawPng(dayGroups(cur)) }; // for testing
+window.TG={ get db(){return db;}, get route(){return route;}, setRoute, go, dayText, png:()=>drawPng(dayGroups(cur)) }; // for testing
 })();

@@ -3,6 +3,23 @@
  "updated": "2026-10-25T08:22:12-06:00",
  "max_ft": 20,
  "default_lease": "bringelson",
+ "default_route": "route-3",
+ "routes": {
+  "route-3": {
+   "name": "Route 3",
+   "leases": [
+    "bringelson"
+   ],
+   "hauls": true
+  },
+  "route-2": {
+   "name": "Route 2",
+   "leases": [
+    "route-2"
+   ],
+   "hauls": false
+  }
+ },
  "leases": {
   "bringelson": {
    "name": "Bringelson",
@@ -16,8 +33,22 @@
     "6-20",
     "7-20"
    ]
+  },
+  "route-2": {
+   "name": "Route 2",
+   "route": []
   }
  },
+ "haulers": [
+  {
+   "id": "b-fed",
+   "name": "B-Fed"
+  },
+  {
+   "id": "timbro-01",
+   "name": "Timbro 1931"
+  }
+ ],
  "days": {
   "2026-10-15": [
    {
@@ -427,15 +458,5 @@
     "buyback": 9
    }
   ]
- },
- "haulers": [
-  {
-   "id": "b-fed",
-   "name": "B-Fed"
-  },
-  {
-   "id": "timbro-01",
-   "name": "Timbro 1931"
-  }
- ]
+ }
 }

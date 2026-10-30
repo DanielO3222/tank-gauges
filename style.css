@@ -228,3 +228,12 @@ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
 .chip.bbtop .lbadge{margin-left:4px;background:#1a0f00;color:#ffcf7a;vertical-align:2px}
 .statwrap{white-space:nowrap}.subnav{flex-wrap:nowrap}
 .subnav .legend{flex:0 0 auto;white-space:nowrap;gap:9px}.subnav .legend>span{white-space:nowrap}.statwrap{min-width:0;gap:4px}.status{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---- v1.9.3 route switcher (top-left, absolute so header height is unchanged) ---- */
+.routeseg{position:absolute;left:2px;top:7px;display:flex;flex-direction:column;border:1.5px solid var(--cy);border-radius:9px;overflow:hidden;
+  box-shadow:0 0 8px rgba(90,220,255,.45);background:rgba(8,24,44,.9);z-index:2}
+.routeseg button{border:0;background:transparent;color:#78b4d2;font-family:Orbitron;font-weight:800;font-size:9.5px;letter-spacing:.4px;
+  padding:3px 8px;line-height:12px;cursor:pointer}
+.routeseg button+button{border-top:1px solid #1d5a85}
+.routeseg button.on{background:linear-gradient(180deg,#7fe6ff,#28b4e8);color:#04121f}
+.route-empty{font-size:17px}.route-empty b{color:#a0e6ff;font-size:19px}.re-big{font-size:40px;line-height:1.2}
