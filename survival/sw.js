@@ -1,5 +1,5 @@
 /* Survival Book service worker (scope /survival/): cache everything for offline reading. */
-const VERSION = "sb-v1.2";
+const VERSION = "sb-v1.3";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-180.png", "wiggins-survival-book.pdf"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
