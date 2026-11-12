@@ -4,10 +4,7 @@
 :root{--suc:#28c8ff;--rpm:#ffb828;--cy:#5adcff;--frame:#288cc8;--bg:#04080f;--txt:#e1f5ff;--muted:#78b4d2}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--txt);font-family:RC,system-ui,sans-serif}
-body{background:
-  linear-gradient(rgba(10,26,40,.55) 1px,transparent 1px) 0 0/20px 20px,
-  linear-gradient(90deg,rgba(10,26,40,.55) 1px,transparent 1px) 0 0/20px 20px,
-  linear-gradient(180deg,#040a1c 0%,#08122a 50%,#0a0c18 100%);background-attachment:fixed}
+body{background:linear-gradient(180deg,#040a1c 0%,#08122a 50%,#0a0c18 100%);background-attachment:fixed}
 button,input{font-family:inherit}
 #app{max-width:520px;margin:0 auto;padding:env(safe-area-inset-top) 12px calc(8px + env(safe-area-inset-bottom));
   height:100vh;height:100dvh;display:flex;flex-direction:column}

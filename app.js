@@ -5,7 +5,7 @@
 const DATA_URL = localStorage.getItem("tg_data_url") || "data/gauges.json";
 const POLL_MS = 60000;
 const K_CACHE = "tg_cache_v1", K_LOCAL = "tg_local_v1", K_VIEW = "tg_view";
-const APP_VERSION = "tg-v1.9.8";
+const APP_VERSION = "tg-v1.9.9";
 const $ = s => document.querySelector(s);
 const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -556,7 +556,6 @@ function applyTheme(p){
   r.setProperty("--accent-ink",ink(ac));
   r.setProperty("--title",mix(ac,txt,.25));
   r.setProperty("--sheet",mix(bg,ac,.1));
-  r.setProperty("--grid",mix(ac,bg,.18));
   const meta=document.querySelector('meta[name="theme-color"]'); if(meta) meta.content=bg;
 }
 function themeColors(){ return {OIL:getComputedStyle(document.documentElement).getPropertyValue("--oil").trim()||"#ffb828", WAT:getComputedStyle(document.documentElement).getPropertyValue("--wat").trim()||"#28c8ff", CY:getComputedStyle(document.documentElement).getPropertyValue("--cy").trim()||"#5adcff", BG:getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#04080f", TXT:getComputedStyle(document.documentElement).getPropertyValue("--txt").trim()||"#e1f5ff"}; }

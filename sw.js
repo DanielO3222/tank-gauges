@@ -1,5 +1,5 @@
 /* Tank Gauges service worker: app shell cache-first, data file network-first. */
-const VERSION = "tg-v1.9.8";
+const VERSION = "tg-v1.9.9";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest",
   "fonts/Orbitron.ttf", "fonts/RobotoCondensed.ttf",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "icons/favicon-32.png", "data/gauges.json"];

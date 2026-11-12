@@ -1,5 +1,5 @@
 /* Bubble Level service worker (scope /level/): shell cache-first (works offline). */
-const VERSION = "lv-v1.0";
+const VERSION = "lv-v1.1";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest",
   "../fonts/Orbitron.ttf", "../fonts/RobotoCondensed.ttf", "../icons/icon-192.png", "../icons/apple-touch-icon.png"];
 self.addEventListener("install", e => {

@@ -10,10 +10,7 @@
 html,body{margin:0;background:var(--bg);color:var(--txt);font-family:RC,system-ui,sans-serif}
 body{
   min-height:100vh;
-  background:
-    linear-gradient(color-mix(in srgb,var(--grid,rgb(10,26,40)) 32%,transparent) 1px,transparent 1px) 0 0/20px 20px,
-    linear-gradient(90deg,color-mix(in srgb,var(--grid,rgb(10,26,40)) 32%,transparent) 1px,transparent 1px) 0 0/20px 20px,
-    linear-gradient(180deg,var(--bg-top,#040a1c) 0%,var(--bg-mid,#08122a) 50%,var(--bg-bot,#0a0c18) 100%);
+  background:linear-gradient(180deg,var(--bg-top,#040a1c) 0%,var(--bg-mid,#08122a) 50%,var(--bg-bot,#0a0c18) 100%);
   background-attachment:fixed;
   padding:env(safe-area-inset-top) 0 calc(84px + env(safe-area-inset-bottom));
 }
@@ -267,7 +264,7 @@ body{padding-bottom:calc(56px + env(safe-area-inset-bottom))}
 @media (max-width:380px){.datebox{gap:4px}.weekday{font-size:12px}.datelong{font-size:12px}.chip.today{padding:0 8px}.seg{max-width:148px}.iconbtn{padding:0 8px}}
 
 /* ---- theme hookups (vars set in app.js; defaults match the original neon look) ---- */
-:root{--bg-top:#040a1c;--bg-mid:#08122a;--bg-bot:#0a0c18;--btn:#0f5a86;--btn-ink:#fff;--accent-ink:#04121f;--title:#46c4e8;--sheet:#081426;--grid:#0a1a28}
+:root{--bg-top:#040a1c;--bg-mid:#08122a;--bg-bot:#0a0c18;--btn:#0f5a86;--btn-ink:#fff;--accent-ink:#04121f;--title:#46c4e8;--sheet:#081426}
 h1{color:var(--title);text-shadow:0 0 5px color-mix(in srgb,var(--cy) 55%,transparent),0 0 14px color-mix(in srgb,var(--cy) 28%,transparent)}
 .sub,.lease-h,.sheet h2,.hauls-h,.list td.lh{color:var(--title,#a0e6ff)}
 .sub,.list th,.foot{border-color:var(--frame)}
