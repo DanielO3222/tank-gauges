@@ -237,3 +237,8 @@ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
 .routeseg button+button{border-top:1px solid #1d5a85}
 .routeseg button.on{background:linear-gradient(180deg,#7fe6ff,#28b4e8);color:#04121f}
 .route-empty{font-size:17px}.route-empty b{color:#a0e6ff;font-size:19px}.re-big{font-size:40px;line-height:1.2}
+
+/* ---- v1.9.5 tap-to-edit truck loads (B-Fed / Timbro 1931) ---- */
+.card.haul[data-haul]{cursor:pointer}
+.card.haul[data-haul]:active::after{background:linear-gradient(180deg,rgba(20,50,80,.96),rgba(10,30,55,.96))}
+.card.haul .hn .lbadge{margin-left:4px}

@@ -96,6 +96,19 @@
     </div>
   </div>
 </div>
+<div id="hSheet" class="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-label="Truck load">
+    <h2 id="hName">Truck load</h2>
+    <p class="hint">Daily barrels hauled (all tickets). Saved on this phone only (marked <b class="lbadge">L</b>) until it's in the shared file. Tap Copy to send.</p>
+    <div class="row"><label for="hDate">Date</label><input id="hDate" type="date"></div>
+    <div class="row"><label for="hBbl">Barrels</label><input id="hBbl" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off" class="bbin"><span class="unit">bbl</span></div>
+    <div class="btns">
+      <button id="hCancel" class="chip">Cancel</button>
+      <button id="hDel" class="chip warn" hidden>Remove local</button>
+      <button id="hSave" class="chip primary">Save</button>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast" hidden></div>
 <script src="app.js"></script>
 </body>

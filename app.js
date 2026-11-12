@@ -64,7 +64,7 @@ async function refresh(manual){
     if(!j.days || !j.leases) throw new Error("bad data file");
     db = j; fetchedAt = new Date().toISOString(); online = true;
     localStorage.setItem(K_CACHE, JSON.stringify({db, fetchedAt}));
-    pruneLocal(); pruneBB();
+    pruneLocal(); pruneBB(); pruneHauls();
   }catch(e){
     online = false;
     if(!db){ const c = loadJSON(K_CACHE); if(c){ db=c.db; fetchedAt=c.fetchedAt; } }
@@ -137,7 +137,19 @@ function gaugedDays(){
 const DEF_HAULERS=[{id:"b-fed",name:"B-Fed"},{id:"timbro-01",name:"Timbro 1931"}];
 function bbl(n){ return Math.round(n).toLocaleString("en-US"); }
 function haulers(){ return (db && db.haulers && db.haulers.length) ? db.haulers : DEF_HAULERS; }
-function haulsFor(date){ const o={}; for(const g of (db.days[date]||[])) if(g.hauls && inRoute(g.lease)) Object.assign(o,g.hauls); return o; }
+function haulsShared(date,r){ const o={}, ls=r?((routes()[r]||{}).leases||[]):null;
+  for(const g of ((db&&db.days[date])||[])) if(g.hauls && (ls?ls.includes(g.lease):inRoute(g.lease))) Object.assign(o,g.hauls); return o; }
+const K_HAUL="tg_haul_v1"; let haulAll=loadJSON(K_HAUL)||{};   // route -> date -> id -> {v, ts}
+function haulDay(r,date){ const a=haulAll[r||route]||(haulAll[r||route]={}); return a[date]||(a[date]={}); }
+function saveHaul(){ localStorage.setItem(K_HAUL,JSON.stringify(haulAll)); }
+function haulsFor(date){ return Object.assign({}, haulsShared(date), Object.fromEntries(Object.entries(haulDay(route,date)).map(([id,l])=>[id,l.v]))); }
+function haulLocal(date,id){ return !!(haulAll[route]&&haulAll[route][date]&&haulAll[route][date][id]); }
+function pruneHauls(){ let ch=false;
+  for(const r of Object.keys(haulAll)) for(const d of Object.keys(haulAll[r])){
+    const sh=haulsShared(d,r);
+    for(const id of Object.keys(haulAll[r][d])) if(sh[id]===haulAll[r][d][id].v){ delete haulAll[r][d][id]; ch=true; }
+    if(!Object.keys(haulAll[r][d]).length){ delete haulAll[r][d]; ch=true; }
+  } if(ch) saveHaul(); }
 const TK={x:60,y:12,w:192,h:28};
 function semiSvg(id,pct,has){
   const c="h-"+id.replace(/[^a-z0-9]/gi,""), dy=(TK.h*(1-pct/100)).toFixed(2);
@@ -185,7 +197,8 @@ function haulHtml(){
   const hs=haulsFor(cur);
   return `<div class="hauls-h">WATER HAULED</div><div class="hauls">`+haulers().map(h=>{
     const v=hs[h.id], has=typeof v==="number", pct=has?100:0;
-    return `<section class="card haul"><span class="accent"></span><div class="hh"><span class="hn">${esc(h.name.toUpperCase())}</span>
+    const loc=haulLocal(cur,h.id);
+    return `<section class="card haul" data-haul="${esc(h.id)}"><span class="accent"></span><div class="hh"><span class="hn">${esc(h.name.toUpperCase())}${loc?' <span class="lbadge">L</span>':""}</span>
       <span class="hv${has?"":" none"}">${has?`${bbl(v)} bbl`:"— bbl"}</span></div>${semiSvg(h.id,pct,has)}</section>`;
   }).join("")+`</div>`;
 }
@@ -222,7 +235,10 @@ function render(animate=true){
     const days=gaugedDays(), before=days.filter(x=>x<cur).pop(), after=days.find(x=>x>cur);
     v.innerHTML=`<div class="empty-day">No gauges logged for<br><b>${WD[d.getDay()]}, ${longDate(cur)}</b>.
       ${before?`<br><button class="chip" data-go="${before}">◀ Last gauged: ${shortDate(before)}</button>`:""}
-      ${after?`<br><button class="chip" data-go="${after}">Next gauged: ${shortDate(after)} ▶</button>`:""}</div>`;
+      ${after?`<br><button class="chip" data-go="${after}">Next gauged: ${shortDate(after)} ▶</button>`:""}</div>`+(routeCfg().hauls?haulHtml():"");
+    if(view==="tanks" && routeCfg().hauls){ const hf=[...v.querySelectorAll(".hfill")];
+      const set=()=>hf.forEach((f,i)=>{ f.style.transitionDelay=(i*0.06)+"s"; f.style.transform=`translateY(${f.dataset.y}px)`; });
+      if(animate) requestAnimationFrame(()=>requestAnimationFrame(set)); else { hf.forEach(f=>f.style.transition="none"); set(); } }
     return;
   }
   v.innerHTML = view==="list" ? renderList(groups) : renderTanks(groups);
@@ -296,6 +312,7 @@ document.addEventListener("click",e=>{
   const ed=e.target.closest("[data-edit]"); if(ed){ const [l,loc,t]=ed.dataset.edit.split("|"); return openForm(l,loc,t); }
   if(e.target.id==="copyDay") copy(dayText(),"Day copied");
   if(e.target.closest("#bbBtn")) return openBB();
+  const hl=e.target.closest("[data-haul]"); if(hl) return openHaul(hl.dataset.haul);
 });
 $("#copyLocal").onclick=()=>copy(dayText(),"Day copied");
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
@@ -350,6 +367,29 @@ $("#fSave").onclick=()=>{
 $("#fDelete").onclick=()=>{ delete local[lkey($("#fDate").value,$("#fLease").value,formLoc(),fTank)]; localStorage.setItem(K_LOCAL, JSON.stringify(local)); $("#sheet").hidden=true; render(false); };
 $("#addBtn").onclick=()=>openForm();
 $("#routeSeg").onclick=e=>{ const b=e.target.closest("button[data-route]"); if(b && b.dataset.route!==route) setRoute(b.dataset.route); };
+let fHaul=null;
+function openHaul(id){
+  if(!db) return toast("No data loaded yet");
+  if(!routeCfg().hauls) return toast(`${routeName()} doesn't log truck loads`);
+  const h=haulers().find(x=>x.id===id); if(!h) return;
+  fHaul=id; $("#hName").textContent=h.name; $("#hDate").value=cur;
+  const v=haulsFor(cur)[id]; $("#hBbl").value=typeof v==="number"?v:"";
+  $("#hDel").hidden=!haulLocal(cur,id); $("#hSheet").hidden=false; setTimeout(()=>$("#hBbl").focus(),50);
+}
+$("#hCancel").onclick=()=>$("#hSheet").hidden=true;
+$("#hSheet").onclick=e=>{ if(e.target.id==="hSheet") $("#hSheet").hidden=true; };
+$("#hSave").onclick=()=>{
+  const d=$("#hDate").value, t=$("#hBbl").value.trim().replace(/,/g,""), n=t===""?NaN:Number(t);
+  if(!d) return toast("Pick a date"); if(!Number.isInteger(n)||n<0) return toast("Whole number of barrels only");
+  const s=haulsShared(d)[fHaul], k=haulDay(route,d);
+  if(s===n) delete k[fHaul]; else k[fHaul]={v:n,ts:new Date().toISOString()};
+  if(!Object.keys(k).length && haulAll[route]) delete haulAll[route][d];
+  saveHaul(); $("#hSheet").hidden=true; cur=d; render(true);
+  toast(`${haulers().find(x=>x.id===fHaul).name} ${bbl(n)} bbl saved on phone`);
+};
+$("#hDel").onclick=()=>{ const d=$("#hDate").value, k=haulDay(route,d); delete k[fHaul];
+  if(!Object.keys(k).length && haulAll[route]) delete haulAll[route][d];
+  saveHaul(); $("#hSheet").hidden=true; render(true); toast("Local truck load removed"); };
 function openBB(){ const b=bbFor(cur); $("#bbDate").textContent=`${WD[parseYmd(cur).getDay()]}, ${longDate(cur)}`;
   $("#bbIn").value=b.v||""; $("#bbDel").hidden=!bbL()[cur]; $("#bbSheet").hidden=false; setTimeout(()=>$("#bbIn").focus(),50); }
 $("#bbCancel").onclick=()=>$("#bbSheet").hidden=true;
