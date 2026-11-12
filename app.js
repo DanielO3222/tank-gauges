@@ -321,8 +321,29 @@ window.addEventListener("offline",()=>{ online=false; render(false); });
 setInterval(()=>{ if(document.visibilityState==="visible") refresh(); }, POLL_MS);
 
 /* ---------- add / fix form ---------- */
-let fTank="oil";
+let fTank="oil", fDraft={oil:null,water:null}, fOrig={oil:null,water:null}, fDirty={oil:false,water:false};
 function fillSelect(sel,vals,cur){ sel.innerHTML=vals.map(v=>`<option value="${esc(v[0])}"${v[0]==cur?" selected":""}>${esc(v[1])}</option>`).join(""); }
+function formVal(){ return {ft:+$("#fFt").value,in:+$("#fIn").value}; }
+function stashLevel(){ fDraft[fTank]=formVal(); }
+function loadOrig(){
+  const d=$("#fDate").value, l=$("#fLease").value, loc=formLoc();
+  fDraft={oil:null,water:null}; fOrig={oil:null,water:null}; fDirty={oil:false,water:false};
+  if(!d||!l||!loc) return;
+  for(const t of ["oil","water"]){ const v=local[lkey(d,l,loc,t)]||sharedVal(d,l,loc,t); fOrig[t]=v?{ft:v.ft,in:v.in}:null; }
+}
+function showLevel(){
+  const v=fDraft[fTank]||fOrig[fTank];
+  $("#fFt").value=v?v.ft:0; $("#fIn").value=v?v.in:0;
+  updateDel();
+}
+function updateDel(){
+  const d=$("#fDate").value, l=$("#fLease").value, loc=formLoc();
+  $("#fDelete").hidden=!(d&&l&&loc&&(local[lkey(d,l,loc,"oil")]||local[lkey(d,l,loc,"water")]));
+}
+function writeLocal(d,l,loc,t,v){
+  const s=sharedVal(d,l,loc,t), k=lkey(d,l,loc,t);
+  if(s && s.ft===v.ft && s.in===v.in) delete local[k]; else local[k]={ft:v.ft,in:v.in,ts:new Date().toISOString()};
+}
 function openForm(lease,loc,tank){
   if(!db) return toast("No data loaded yet");
   if(!routeHasTanks()) return toast(`${routeName()} tanks aren't set up yet`);
@@ -340,31 +361,44 @@ function openForm(lease,loc,tank){
   $("#fLocOtherRow").hidden=true;
   fillSelect($("#fFt"), Array.from({length:maxFt()+1},(_, i)=>[i,i]), 0);
   fillSelect($("#fIn"), Array.from({length:12},(_, i)=>[i,i]), 0);
-  setTank(tank||"oil"); prefill();
+  loadOrig(); setTank(tank||"oil");
   $("#sheet").hidden=false;
 }
-function setTank(t){ fTank=t; $("#fTank").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.t===t)); prefill(); }
+function setTank(t){ if(t!==fTank) stashLevel(); fTank=t; $("#fTank").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.t===t)); showLevel(); }
 function formLoc(){ return $("#fLoc").value==="__new" ? $("#fLocOther").value.trim() : $("#fLoc").value; }
-function prefill(){
-  const d=$("#fDate").value, l=$("#fLease").value, loc=formLoc(); if(!d||!l||!loc) return;
-  const k=lkey(d,l,loc,fTank), v=local[k]||sharedVal(d,l,loc,fTank);
-  if(v){ $("#fFt").value=v.ft; $("#fIn").value=v.in; }
-  $("#fDelete").hidden=!local[k];
-}
-$("#fTank").onclick=e=>{ const b=e.target.closest("button"); if(b) setTank(b.dataset.t); };
+function prefill(){ loadOrig(); showLevel(); }
+$("#fTank").onclick=e=>{ const b=e.target.closest("button"); if(b && b.dataset.t!==fTank) setTank(b.dataset.t); };
 $("#fLoc").onchange=()=>{ $("#fLocOtherRow").hidden=$("#fLoc").value!=="__new"; prefill(); };
 $("#fDate").onchange=prefill; $("#fLease").onchange=prefill;
+$("#fFt").addEventListener("change",()=>fDirty[fTank]=true);
+$("#fIn").addEventListener("change",()=>fDirty[fTank]=true);
 $("#fCancel").onclick=()=>$("#sheet").hidden=true;
 $("#sheet").onclick=e=>{ if(e.target.id==="sheet") $("#sheet").hidden=true; };
 $("#fSave").onclick=()=>{
-  const d=$("#fDate").value, l=$("#fLease").value, loc=formLoc(), ft=+$("#fFt").value, inch=+$("#fIn").value;
+  stashLevel();
+  const d=$("#fDate").value, l=$("#fLease").value, loc=formLoc();
   if(!d||!loc) return toast("Pick a date and location");
-  const s=sharedVal(d,l,loc,fTank), k=lkey(d,l,loc,fTank);
-  if(s && s.ft===ft && s.in===inch) delete local[k]; else local[k]={ft,in:inch,ts:new Date().toISOString()};
+  // Current tab counts as entered if its numbers differ from what was already stored (or it's a new reading that isn't 0' 0").
+  const curV=fDraft[fTank]||formVal(), orig=fOrig[fTank];
+  if(!fDirty[fTank]){
+    if(orig && (orig.ft!==curV.ft || orig.in!==curV.in)) fDirty[fTank]=true;
+    if(!orig && (curV.ft||curV.in)) fDirty[fTank]=true;
+  }
+  const saved=[];
+  for(const t of ["oil","water"]){
+    if(!fDirty[t]) continue;
+    const v=fDraft[t]; if(!v) continue;
+    writeLocal(d,l,loc,t,v); saved.push(`${t} ${v.ft}' ${v.in}"`);
+  }
+  if(!saved.length) return toast("Enter a level to save");
   localStorage.setItem(K_LOCAL, JSON.stringify(local));
-  $("#sheet").hidden=true; cur=d; render(true); toast(`${loc} ${fTank} ${ft}' ${inch}" saved on phone`);
+  $("#sheet").hidden=true; cur=d; render(true); toast(`${loc} ${saved.join(" / ")} saved on phone`);
 };
-$("#fDelete").onclick=()=>{ delete local[lkey($("#fDate").value,$("#fLease").value,formLoc(),fTank)]; localStorage.setItem(K_LOCAL, JSON.stringify(local)); $("#sheet").hidden=true; render(false); };
+$("#fDelete").onclick=()=>{
+  const d=$("#fDate").value, l=$("#fLease").value, loc=formLoc();
+  for(const t of ["oil","water"]) delete local[lkey(d,l,loc,t)];
+  localStorage.setItem(K_LOCAL, JSON.stringify(local)); $("#sheet").hidden=true; render(false); toast("Local edits removed");
+};
 $("#addBtn").onclick=()=>openForm();
 $("#routeSeg").onclick=e=>{ const b=e.target.closest("button[data-route]"); if(b && b.dataset.route!==route) setRoute(b.dataset.route); };
 let fHaul=null;
