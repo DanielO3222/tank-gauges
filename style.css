@@ -11,9 +11,9 @@ html,body{margin:0;background:var(--bg);color:var(--txt);font-family:RC,system-u
 body{
   min-height:100vh;
   background:
-    linear-gradient(rgba(10,26,40,.55) 1px,transparent 1px) 0 0/20px 20px,
-    linear-gradient(90deg,rgba(10,26,40,.55) 1px,transparent 1px) 0 0/20px 20px,
-    linear-gradient(180deg,#040a1c 0%,#08122a 50%,#0a0c18 100%);
+    linear-gradient(color-mix(in srgb,var(--grid,rgb(10,26,40)) 55%,transparent) 1px,transparent 1px) 0 0/20px 20px,
+    linear-gradient(90deg,color-mix(in srgb,var(--grid,rgb(10,26,40)) 55%,transparent) 1px,transparent 1px) 0 0/20px 20px,
+    linear-gradient(180deg,var(--bg-top,#040a1c) 0%,var(--bg-mid,#08122a) 50%,var(--bg-bot,#0a0c18) 100%);
   background-attachment:fixed;
   padding:env(safe-area-inset-top) 0 calc(84px + env(safe-area-inset-bottom));
 }
@@ -242,3 +242,49 @@ body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
 .card.haul[data-haul]{cursor:pointer}
 .card.haul[data-haul]:active::after{background:linear-gradient(180deg,rgba(20,50,80,.96),rgba(10,30,55,.96))}
 .card.haul .hn .lbadge{margin-left:4px}
+
+/* ---- v1.9.7 layout: thinner date row, bigger route switch, tighter bar + settings ---- */
+.datenav{margin-top:5px;gap:5px}
+.navbtn{flex:0 0 42px;height:36px;font-size:15px;border-radius:9px}
+.datebox{min-height:36px;height:36px;border-radius:9px;gap:6px}
+.weekday{font-size:13px}
+.datelong{font-size:13px}
+.chip.today{height:36px;padding:0 10px;border-radius:9px;font-size:13px}
+.routeseg{top:4px;left:2px;padding:3px;gap:5px;border-radius:10px;max-width:92px}
+.routeseg button{padding:7px 6px;font-size:10px;line-height:13px;letter-spacing:.15px;border-radius:7px;white-space:nowrap}
+.routeseg button+button{border-top:0;margin:0}
+.bottombar{padding:6px 8px calc(6px + env(safe-area-inset-bottom));gap:6px}
+.seg{flex:1;max-width:168px}
+.seg button,.iconbtn{height:42px}
+.iconbtn{min-width:48px;padding:0 10px;font-size:15px;border-radius:12px}
+.iconbtn.add{min-width:46px;font-size:24px}
+.iconbtn.gear{min-width:42px;width:42px;padding:0;display:flex;align-items:center;justify-content:center;color:var(--cy)}
+.iconbtn.gear svg{display:block}
+body{padding-bottom:calc(56px + env(safe-area-inset-bottom))}
+.set-status{font-size:14px;color:var(--muted);margin:0 0 10px}
+.set-status.off{color:#ffb070}
+.set-actions{justify-content:flex-start;margin-top:8px}
+@media (max-width:380px){.datebox{gap:4px}.weekday{font-size:12px}.datelong{font-size:12px}.chip.today{padding:0 8px}.seg{max-width:148px}.iconbtn{padding:0 8px}}
+
+/* ---- theme hookups (vars set in app.js; defaults match the original neon look) ---- */
+:root{--bg-top:#040a1c;--bg-mid:#08122a;--bg-bot:#0a0c18;--btn:#0f5a86;--btn-ink:#fff;--accent-ink:#04121f;--title:#46c4e8;--sheet:#081426;--grid:#0a1a28}
+h1{color:var(--title);text-shadow:0 0 5px color-mix(in srgb,var(--cy) 55%,transparent),0 0 14px color-mix(in srgb,var(--cy) 28%,transparent)}
+.sub,.lease-h,.sheet h2,.hauls-h,.list td.lh{color:var(--title,#a0e6ff)}
+.sub,.list th,.foot{border-color:var(--frame)}
+.foot{color:var(--muted)}
+.weekday{color:var(--txt)}
+.chip.primary,.iconbtn.add,.seg button.on,.toast{background:var(--btn);color:var(--btn-ink);border-color:var(--cy)}
+.seg button.on{box-shadow:inset 0 0 10px color-mix(in srgb,var(--cy) 40%,transparent)}
+.chip.hdrlink,.routeseg button.on{background:linear-gradient(180deg,color-mix(in srgb,var(--cy) 85%,#fff),var(--cy));color:var(--accent-ink);border-color:var(--cy);box-shadow:0 0 10px color-mix(in srgb,var(--cy) 70%,transparent)}
+.routeseg button{color:var(--muted)}
+.bottombar{background:color-mix(in srgb,var(--bg) 92%,transparent);border-top-color:var(--frame)}
+.sheet-card{background:var(--sheet)}
+.row select,.row input{background:color-mix(in srgb,var(--bg) 70%,#000);border-color:var(--frame);color:var(--txt)}
+.card::before{background:var(--frame)}
+.card::after{background:linear-gradient(180deg,color-mix(in srgb,var(--bg) 96%,#000),color-mix(in srgb,var(--bg) 96%,#000))}
+.val.none,.hv.none{color:var(--muted)}
+.set-h{font-family:Orbitron;font-size:13px;color:var(--title,#a0e6ff);letter-spacing:1px;margin:16px 0 4px}
+.theme-rows{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.theme-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:700;color:var(--txt)}
+.theme-row input[type=color]{width:52px;height:40px;padding:0;border:1.5px solid var(--frame);border-radius:10px;background:transparent;cursor:pointer}
+.hdr h1{font-size:20px;letter-spacing:0;white-space:nowrap}

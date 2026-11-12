@@ -10,8 +10,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Gauges">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="shortcut icon" href="icons/favicon.ico">
 <link rel="preload" href="fonts/Orbitron.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -46,6 +48,9 @@
 </div>
 
 <div class="bottombar">
+  <button id="settingsBtn" class="iconbtn gear" aria-label="Settings" title="Settings">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64L4.86 10.7c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.7 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
+  </button>
   <div class="seg" role="tablist">
     <button id="tabTanks" class="on" role="tab">Tanks</button>
     <button id="tabList" role="tab">List</button>
@@ -107,6 +112,26 @@
       <button id="hDel" class="chip warn" hidden>Remove local</button>
       <button id="hSave" class="chip primary">Save</button>
     </div>
+  </div>
+</div>
+<div id="setSheet" class="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-label="Settings">
+    <h2>Settings</h2>
+    <p class="hint" id="setVer">Tank Gauges</p>
+    <p class="set-status" id="setStatus">—</p>
+    <p class="hint">Readings, truck loads, and the BB # that you save on this phone are marked <b class="lbadge">L</b>. They stay on this phone until you tap <b>Copy</b> and they're added to the shared file.</p>
+    <div class="btns set-actions">
+      <button id="setRefresh" class="chip">↻ Refresh</button>
+      <a class="chip" href="compressors/">Compressors ›</a>
+    </div>
+    <h3 class="set-h">Colors</h3>
+    <p class="hint">Changes stay on this phone. Random picks a readable palette.</p>
+    <div id="themeRows" class="theme-rows"></div>
+    <div class="btns set-actions">
+      <button id="themeRand" class="chip">Random</button>
+      <button id="themeReset" class="chip">Reset</button>
+    </div>
+    <div class="btns"><button id="setClose" class="chip primary">Close</button></div>
   </div>
 </div>
 <div id="toast" class="toast" hidden></div>

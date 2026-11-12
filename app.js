@@ -5,6 +5,7 @@
 const DATA_URL = localStorage.getItem("tg_data_url") || "data/gauges.json";
 const POLL_MS = 60000;
 const K_CACHE = "tg_cache_v1", K_LOCAL = "tg_local_v1", K_VIEW = "tg_view";
+const APP_VERSION = "tg-v1.9.7";
 const $ = s => document.querySelector(s);
 const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -452,8 +453,8 @@ async function drawPng(groups){
   const TW=128, TH=240, rowh=TH+186, haulTop=0, haulBlock=260;
   const W=1080, top=330, nrows=Math.ceil(rows.length/2), H=Math.max(1920, top+nrows*rowh+haulBlock+110);
   const c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d");
-  const OIL="#ffb828", WAT="#28c8ff", CY="#5adcff";
-  const bg=x.createLinearGradient(0,0,0,H); bg.addColorStop(0,"#040a1c"); bg.addColorStop(.5,"#08122a"); bg.addColorStop(1,"#0a0c18");
+  const tc=themeColors(), OIL=tc.OIL, WAT=tc.WAT, CY=tc.CY;
+  const bg=x.createLinearGradient(0,0,0,H); bg.addColorStop(0,tc.BG||"#040a1c"); bg.addColorStop(.5,mix(tc.BG||"#04080f",CY,.12)); bg.addColorStop(1,shade(tc.BG||"#04080f",.7));
   x.fillStyle=bg; x.fillRect(0,0,W,H);
   x.strokeStyle="rgba(10,26,40,1)"; x.lineWidth=1; x.beginPath();
   for(let i=0;i<W;i+=40){x.moveTo(i+.5,0);x.lineTo(i+.5,H);} for(let i=0;i<H;i+=40){x.moveTo(0,i+.5);x.lineTo(W,i+.5);} x.stroke();
@@ -521,7 +522,68 @@ function semiImage(id,pct,has,w,h){
 }
 function rr(x,a,b,w,h,r){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+h,r); x.arcTo(a+w,b+h,a,b+h,r); x.arcTo(a,b+h,a,b,r); x.arcTo(a,b,a+w,b,r); x.closePath(); }
 
+/* ---------- theme (phone-only color customization) ---------- */
+const K_THEME="tg_theme_v1";
+const THEME_DEF={bg:"#04080f",accent:"#5adcff",oil:"#ffb828",water:"#28c8ff",text:"#e1f5ff",button:"#0f5a86"};
+const THEME_LABELS={bg:"Background",accent:"Neon / accent",oil:"Oil",water:"Water",text:"Text",button:"Buttons"};
+function hexToRgb(h){ h=String(h||"").replace("#",""); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; if(h.length<6)h="000000"; return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; }
+function rgbToHex(r,g,b){ const c=n=>Math.max(0,Math.min(255,Math.round(n))).toString(16).padStart(2,"0"); return "#"+c(r)+c(g)+c(b); }
+function mix(a,b,t){ const A=hexToRgb(a),B=hexToRgb(b); return rgbToHex(A[0]+(B[0]-A[0])*t,A[1]+(B[1]-A[1])*t,A[2]+(B[2]-A[2])*t); }
+function shade(h,f){ const [r,g,b]=hexToRgb(h); return rgbToHex(r*f,g*f,b*f); }
+function lum(h){ const [r,g,b]=hexToRgb(h).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)}); return .2126*r+.7152*g+.0722*b; }
+function contrast(a,b){ const x=lum(a),y=lum(b),hi=Math.max(x,y),lo=Math.min(x,y); return (hi+.05)/(lo+.05); }
+function ink(h){ return lum(h)>0.45?"#04121f":"#e8f7ff"; }
+function hslToHex(h,s,l){ s/=100;l/=100; h=((h%360)+360)%360; const a=s*Math.min(l,1-l); const f=n=>{const k=(n+h/30)%12; return Math.round(255*(l-a*Math.max(Math.min(k-3,9-k,1),-1)));}; return rgbToHex(f(0),f(8),f(4)); }
+function loadTheme(){ const t=loadJSON(K_THEME); return t&&t.bg?Object.assign({},THEME_DEF,t):Object.assign({},THEME_DEF); }
+function saveTheme(p){ localStorage.setItem(K_THEME,JSON.stringify(p)); }
+function applyTheme(p){
+  const bg=p.bg, ac=p.accent, oil=p.oil, wat=p.water, txt=p.text, btn=p.button;
+  const r=document.documentElement.style;
+  r.setProperty("--bg",bg);
+  r.setProperty("--bg-top",mix(bg,ac,.07));
+  r.setProperty("--bg-mid",mix(bg,ac,.12));
+  r.setProperty("--bg-bot",shade(bg,.7));
+  r.setProperty("--cy",ac);
+  r.setProperty("--oil",oil);
+  r.setProperty("--oil2",shade(oil,.55));
+  r.setProperty("--wat",wat);
+  r.setProperty("--wat2",shade(wat,.45));
+  r.setProperty("--txt",txt);
+  r.setProperty("--muted",mix(txt,bg,.42));
+  r.setProperty("--frame",mix(ac,bg,.38));
+  r.setProperty("--btn",btn);
+  r.setProperty("--btn-ink",ink(btn));
+  r.setProperty("--accent-ink",ink(ac));
+  r.setProperty("--title",mix(ac,txt,.25));
+  r.setProperty("--sheet",mix(bg,ac,.1));
+  r.setProperty("--grid",mix(ac,bg,.18));
+  const meta=document.querySelector('meta[name="theme-color"]'); if(meta) meta.content=bg;
+}
+function themeColors(){ return {OIL:getComputedStyle(document.documentElement).getPropertyValue("--oil").trim()||"#ffb828", WAT:getComputedStyle(document.documentElement).getPropertyValue("--wat").trim()||"#28c8ff", CY:getComputedStyle(document.documentElement).getPropertyValue("--cy").trim()||"#5adcff", BG:getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#04080f", TXT:getComputedStyle(document.documentElement).getPropertyValue("--txt").trim()||"#e1f5ff"}; }
+function randRange(a,b){ return a+Math.random()*(b-a); }
+function randomTheme(){
+  const bh=Math.random()*360, bg=hslToHex(bh,randRange(22,48),randRange(4,9));
+  let accent,i=0; do{ accent=hslToHex(bh+randRange(40,200),randRange(70,95),randRange(58,74)); }while(contrast(accent,bg)<4.5 && ++i<30);
+  let oh=Math.random()*360, wh=oh+90+randRange(0,90), oil,water,j=0;
+  do{ oil=hslToHex(oh,randRange(80,100),randRange(52,68)); water=hslToHex(wh,randRange(80,100),randRange(52,68)); j++; }
+  while((contrast(oil,bg)<3.2||contrast(water,bg)<3.2||contrast(oil,water)<2.1) && j<30);
+  if(contrast(oil,water)<2.1) water=hslToHex(oh+180,90,62);
+  const text=hslToHex(bh,18,93);
+  let button=hslToHex(bh+randRange(20,80),randRange(55,80),randRange(22,34));
+  if(contrast(button,ink(button))<3.6) button=mix(accent,bg,.42);
+  return {bg,accent,oil,water,text,button};
+}
+function paintThemeInputs(p){ document.querySelectorAll("#themeRows input[type=color]").forEach(el=>{ if(p[el.dataset.tk]) el.value=p[el.dataset.tk]; }); }
+function currentThemeFromInputs(){ const p=Object.assign({},THEME_DEF); document.querySelectorAll("#themeRows input[type=color]").forEach(el=>{ p[el.dataset.tk]=el.value; }); return p; }
+function buildThemeRows(){
+  const box=$("#themeRows"); if(!box||box.dataset.ready) return;
+  box.innerHTML=Object.keys(THEME_LABELS).map(k=>`<label class="theme-row"><span>${THEME_LABELS[k]}</span><input type="color" data-tk="${k}" value="${THEME_DEF[k]}" aria-label="${THEME_LABELS[k]}"></label>`).join("");
+  box.dataset.ready="1";
+  box.addEventListener("input",e=>{ const el=e.target.closest("input[type=color]"); if(!el) return; const p=currentThemeFromInputs(); applyTheme(p); saveTheme(p); });
+}
+
 /* ---------- boot ---------- */
+applyTheme(loadTheme());
 const c=loadJSON(K_CACHE); if(c){ db=c.db; fetchedAt=c.fetchedAt; }
 render(true);
 refresh();
@@ -535,6 +597,17 @@ async function manualRefresh(){
   toast(online ? "Up to date" : "Offline — showing saved data");
 }
 $("#refreshBtn").onclick=manualRefresh;
+
+
+function openSettings(){ buildThemeRows(); paintThemeInputs(loadTheme()); $("#setVer").textContent="Tank Gauges · "+APP_VERSION; $("#setStatus").textContent=statusText(); $("#setStatus").classList.toggle("off",online===false); $("#setSheet").hidden=false; }
+$("#settingsBtn").onclick=openSettings;
+$("#setClose").onclick=()=>$("#setSheet").hidden=true;
+$("#setSheet").onclick=e=>{ if(e.target.id==="setSheet") $("#setSheet").hidden=true; };
+$("#setRefresh").onclick=async()=>{ await manualRefresh(); $("#setStatus").textContent=statusText(); $("#setStatus").classList.toggle("off",online===false); };
+$("#themeRand").onclick=()=>{ const p=randomTheme(); applyTheme(p); saveTheme(p); paintThemeInputs(p); toast("Random colors applied"); };
+$("#themeReset").onclick=()=>{ const p=Object.assign({},THEME_DEF); applyTheme(p); localStorage.removeItem(K_THEME); paintThemeInputs(p); toast("Default colors restored"); };
+
+
 if("serviceWorker" in navigator){ let hadCtl=!!navigator.serviceWorker.controller, reloaded=false;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(hadCtl && !reloaded){ reloaded=true; location.reload(); } }); }
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refresh(); });
