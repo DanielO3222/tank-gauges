@@ -5,7 +5,7 @@
 const DATA_URL = localStorage.getItem("tg_data_url") || "data/gauges.json";
 const POLL_MS = 60000;
 const K_CACHE = "tg_cache_v1", K_LOCAL = "tg_local_v1", K_VIEW = "tg_view";
-const APP_VERSION = "tg-v1.9.7";
+const APP_VERSION = "tg-v1.9.8";
 const $ = s => document.querySelector(s);
 const WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
