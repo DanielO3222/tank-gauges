@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T10:03:30-07:00",
+ "updated": "2026-11-14T15:42:26-07:00",
  "start": {
   "date": "2026-11-10",
   "lb": 231.4
@@ -14,5 +14,35 @@
    "lb": 231.4
   }
  ],
- "days": {}
+ "days": {
+  "2026-11-14": {
+   "entries": [
+    {
+     "photoId": "2026-11-14-152646-im1y",
+     "food": "Seasoned beef (~6 oz), ~1.25 cups white rice, kimchi",
+     "calories": 720,
+     "protein": 50,
+     "fat": 25,
+     "carbs": 70
+    },
+    {
+     "photoId": "2026-11-14-152750-5345",
+     "food": "2 homemade rolls",
+     "calories": 260,
+     "protein": 7,
+     "fat": 6,
+     "carbs": 44
+    }
+   ],
+   "pulseNote": "Solid protein at dinner. You still have about 1,200+ kcal and 100+ g protein of room, so lean protein is the best use of it.",
+   "totals": {
+    "calories": 980,
+    "protein": 57,
+    "fat": 31,
+    "carbs": 114
+   },
+   "status": "reviewed",
+   "reviewedAt": "2026-11-14T15:42:26-07:00"
+  }
+ }
 }
