@@ -68,7 +68,7 @@ def main():
     if not date: ap.error("need --date (or --weight / --clear-day)")
     if a.clear_day:
         d["days"].pop(date, None); d["weights"] = [w for w in d["weights"] if w.get("date") != date or w.get("date") == d.get("start", {}).get("date")]
-        msg = f"Fuel: clear {date}"
+        msg = a.message or f"Fuel: clear {date}"
     else:
         day = d["days"].setdefault(date, {}); touched_food = False
         if a.json:
