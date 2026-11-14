@@ -8,6 +8,8 @@ Examples (run from anywhere):
   # add one entry (keeps existing ones), set metrics, ask a question
   python3 pulse_update.py --date 2026-11-14 --add-entry '{"food":"2 dinner rolls","calories":240,"protein":7,"fat":4,"carbs":44}'
   python3 pulse_update.py --date 2026-11-14 --set steps=8421 activeCal=512 weight=229.8 bodyFat=31.2 muscle=33.5 bmi=33.1
+  # Apple Fitness Summary screenshot: Move cal -> activeCal, Exercise min, Stand hrs, Steps, Step Distance mi
+  python3 pulse_update.py --date 2026-11-14 --set activeCal=679 exerciseMin=18 standHrs=15 steps=8535 distanceMi=3.39
   python3 pulse_update.py --date 2026-11-14 --status needs-info --note "Was the shake made with milk or water?"
   python3 pulse_update.py --weight 2026-11-15 229.6        # weigh-in only
   python3 pulse_update.py --show 2026-11-14                # print a day, no changes
@@ -22,7 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LOG = os.path.normpath(os.path.join(HERE, "..", "data", "log.json"))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
 REL = os.path.relpath(LOG, REPO)
-NUM = ["weight", "bmi", "bodyFat", "muscle", "steps", "activeCal"]
+NUM = ["weight", "bmi", "bodyFat", "muscle", "steps", "activeCal", "exerciseMin", "distanceMi", "standHrs"]
 
 def git(*a, check=True):
     # push auth comes from the box's git config (gh auth git-credential for github.com)

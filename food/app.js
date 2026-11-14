@@ -1,14 +1,16 @@
 /* Fuel — food & weight tracker. Photos/notes/manual entries live on the phone (IndexedDB + localStorage).
    Pulse (health bot) reviews submitted days and writes its numbers to data/log.json, which this app merges in. */
 "use strict";
-const APP_VERSION = "fd-v1.0";
+const APP_VERSION = "fd-v1.1";
 const TZ = "America/Denver";
 const K_SET = "fd-settings", K_LOG = "fd-log";
 const $ = s => document.querySelector(s);
-const DEF = { webhookUrl:"", senderKey:"", authHeader:"Authorization", authScheme:"Bearer ", sendMode:"direct", shortcutName:"Send to Pulse",
+const DEF = { webhookUrl:"", senderKey:"", authHeader:"Authorization", authScheme:"Bearer ", sendMode:"share", shortcutName:"Send to Pulse",
   heightIn:null, startWeight:231.4, startDate:"2026-11-10", goalWeight:165,
   cal:[2200,2400], protein:[160,180], fat:[65,80], carbs:[200,260] };
 let S = Object.assign({}, DEF, loadJSON(K_SET) || {});
+if (S.sendMode === "direct" && !S.webhookUrl) S.sendMode = "share";   // v1.0 default -> v1.1 default
+const K_ACT = "fd-act-range";
 let LOG = (loadJSON(K_LOG) || {}).log || { days:{}, weights:[] }, logAt = (loadJSON(K_LOG) || {}).at || null, online = null;
 let DAYS = {}, PHOTOS = [];           // phone data: DAYS[date] = {date, notes, manual:{}, submittedAt, submittedVia, submittedIds}
 let curDay = null;                     // date open in day view
@@ -88,7 +90,7 @@ async function addFiles(files, date){
 function dayLabel(d){ return d === today() ? "today" : fmtD(d, {weekday:"short", month:"short", day:"numeric"}); }
 
 /* ---------- merge phone + Pulse ---------- */
-const FIELDS = ["weight","bmi","bodyFat","muscle","steps","activeCal"];
+const FIELDS = ["weight","bmi","bodyFat","muscle","steps","activeCal","exerciseMin","distanceMi","standHrs"];
 function sumEntries(es){ const t = {calories:0, protein:0, fat:0, carbs:0}; let any = false;
   (es||[]).forEach(e => ["calories","protein","fat","carbs"].forEach(k => { if (isNum(e[k])){ t[k] += +e[k]; any = true; } }));
   return any ? t : null; }
@@ -206,9 +208,25 @@ function renderStats(){
   const b = latest("bmi"); $("#bmi").textContent = b ? fmt(b.v, 1) : "—"; $("#bmiSub").textContent = b ? asOf(b) : (isNum(S.heightIn) ? "log a weight" : "add height in Settings");
   const f = latest("bodyFat"); $("#bf").textContent = f ? fmt(f.v, 1) + "%" : "—"; $("#bfSub").textContent = asOf(f);
   const m = latest("muscle"); $("#mu").textContent = m ? fmt(m.v, 1) + "%" : "—"; $("#muSub").textContent = asOf(m);
-  const x = merged(today()); $("#steps").textContent = fmt(x.m.steps);
-  $("#actCal").textContent = (isNum(x.m.activeCal) ? fmt(x.m.activeCal) : "—") + " active kcal";
 }
+/* slim activity strip: 7-day average by default, tap for 30-day; averages only over days that have a value */
+const ACT = [["steps","Steps","steps",0,""],["activeCal","Move","move",0,"cal"],["exerciseMin","Exercise","ex",0,"min"],["distanceMi","Distance","dist",2,"mi"]];
+function actAvg(field, n){ let s = 0, k = 0; const t = today();
+  for (let i = 0; i < n; i++){ const v = merged(addDays(t, -i)).m[field]; if (isNum(v)){ s += +v; k++; } }
+  return {avg: k ? s / k : null, n: k}; }
+function renderActivity(){
+  const n = localStorage.getItem(K_ACT) === "30" ? 30 : 7, td = merged(today()).m;
+  let days = 0; const t = today();
+  for (let i = 0; i < n; i++){ const m = merged(addDays(t, -i)).m; if (["steps","activeCal","exerciseMin","distanceMi","standHrs"].some(f => isNum(m[f]))) days++; }
+  $("#actLbl").textContent = "Activity · " + (n === 30 ? "30-day avg" : "7-day avg");
+  const st = actAvg("standHrs", n);
+  $("#actN").textContent = (days ? days + (days === 1 ? " day" : " days") : "no data yet") + (st.avg !== null ? " · stand " + fmt(st.avg, 0) + "h" : "");
+  $("#seg7").className = n === 7 ? "on" : ""; $("#seg30").className = n === 30 ? "on" : "";
+  $("#actRow").innerHTML = ACT.map(([f, lbl, cls, dp, unit]) => { const a = actAvg(f, n);
+    const tv = isNum(td[f]) ? fmt(td[f], dp) : "—";
+    return `<div class="aCell ${cls}"><div class="v">${a.avg === null ? "—" : fmt(a.avg, dp)}${unit && a.avg !== null ? `<small>${unit}</small>` : ""}</div><div class="k">${lbl}</div><div class="td">today ${tv}</div></div>`; }).join("");
+}
+$("#actStrip").addEventListener("click", () => { localStorage.setItem(K_ACT, localStorage.getItem(K_ACT) === "30" ? "7" : "30"); renderActivity(); });
 
 async function foodRows(x, includePhotos = true){
   const byPhoto = {}; x.entries.forEach(e => { if (e.photoId) (byPhoto[e.photoId] = byPhoto[e.photoId] || []).push(e); });
@@ -233,7 +251,7 @@ async function renderToday(){
 
 function render(){
   $("#hdrDate").textContent = fmtD(today(), {weekday:"long", month:"short", day:"numeric"});
-  renderWeek(); renderHero(); renderWeight(); renderStats(); renderToday();
+  renderWeek(); renderHero(); renderActivity(); renderWeight(); renderStats(); renderToday();
   $("#syncDot").className = "syncdot " + (online === true ? "ok" : online === false ? "off" : "");
   $("#foot").textContent = APP_VERSION + (logAt ? " · Pulse data " + new Date(logAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}) : "");
   if (curDay) renderDay();
@@ -275,8 +293,12 @@ async function renderDay(){
   const extra = x.entries.filter(e => !e.photoId || !ids.has(e.photoId));
   $("#otherEntries").innerHTML = extra.length ? '<div class="label">Other items</div>' + extra.map(e => `<div class="food"><div class="ph">🍽️</div><div><div class="fn">${esc(e.food || "Food")}</div><div class="fm">P ${fmt(e.protein)} · F ${fmt(e.fat)} · C ${fmt(e.carbs)}${e.note ? " · " + esc(e.note) : ""}</div></div><div class="kc">${fmt(e.calories)}</div></div>`).join("") : "";
   const p = DAYS[d] || {};
-  $("#submitBtn").textContent = p.submittedAt ? (x.newSince ? `Resubmit to Pulse (${x.newSince} new)` : "Resubmit to Pulse") : "Submit day to Pulse";
-  $("#sendStatus").textContent = p.submittedAt ? `Sent ${new Date(p.submittedAt).toLocaleString("en-US",{timeZone:TZ,month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} via ${({direct:"webhook ✓",shortcut:"Shortcut",share:"Share sheet"})[p.submittedVia] || p.submittedVia}` : "";
+  $("#submitBtn").textContent = p.submittedAt ? (x.newSince ? `Send to Pulse again (${x.newSince} new)` : "Send to Pulse again") : "Send to Pulse";
+  const mode = sendMode();
+  $("#sendHow").textContent = mode === "shortcut" ? `Runs your “${S.shortcutName || "Send to Pulse"}” Shortcut, which posts the day to Pulse.`
+    : mode === "direct" ? "Posts the day to Pulse's webhook." : "Opens the share sheet. Pick Pulse's chat to send the photos and notes.";
+  $("#shareBtn").hidden = mode === "share";
+  $("#sendStatus").textContent = p.submittedAt ? `Sent ${new Date(p.submittedAt).toLocaleString("en-US",{timeZone:TZ,month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} via ${({direct:"webhook ✓",shortcut:"Shortcut",share:"share sheet"})[p.submittedVia] || p.submittedVia}` : "";
 }
 
 let noteT = null, manT = null;
@@ -329,11 +351,12 @@ async function buildPayload(date){
 }
 async function markSent(date, via, ids){ const p = phoneDay(date); p.submittedAt = new Date().toISOString(); p.submittedVia = via; p.submittedIds = ids; await savePhoneDay(date); render(); }
 let sending = false;
+function sendMode(){ return S.sendMode === "shortcut" ? "shortcut" : (S.sendMode === "direct" && S.webhookUrl && S.senderKey) ? "direct" : "share"; }
 $("#submitBtn").onclick = () => {
   const d = curDay; if (sending) return;
-  if (S.sendMode === "share") return shareDay(d);
   if (S.sendMode === "shortcut") return viaShortcut(d);
-  viaWebhook(d);
+  if (S.sendMode === "direct" && S.webhookUrl && S.senderKey) return viaWebhook(d);
+  return shareDay(d);                                   // default: iOS share sheet
 };
 async function viaWebhook(d){
   if (!S.webhookUrl || !S.senderKey){ toast("Paste Pulse's webhook URL and sender key in Settings first"); openSettings(); return; }
@@ -371,7 +394,7 @@ const shareCache = {};
 async function shareParts(d){
   const x = merged(d), p = phoneDay(d), files = [];
   for (const ph of x.photos){ const rec = await idbGet("photos", ph.id); if (rec) files.push(new File([rec.small || rec.full], ph.id + ".jpg", {type:"image/jpeg"})); }
-  const man = FIELDS.filter(f => isNum(p.manual[f])).map(f => ({weight:"Weight",bmi:"BMI",bodyFat:"Body fat %",muscle:"Muscle %",steps:"Steps",activeCal:"Active cal"})[f] + ": " + p.manual[f]);
+  const man = FIELDS.filter(f => isNum(p.manual[f])).map(f => ({weight:"Weight lb",bmi:"BMI",bodyFat:"Body fat %",muscle:"Muscle %",steps:"Steps",activeCal:"Move cal",exerciseMin:"Exercise min",distanceMi:"Distance mi",standHrs:"Stand hrs"})[f] + ": " + p.manual[f]);
   const text = `Food log for ${fmtD(d,{weekday:"short",month:"short",day:"numeric",year:"numeric"})} (${d}), ${files.length} photo${files.length === 1 ? "" : "s"}.\n` +
     (p.notes ? "Notes: " + p.notes + "\n" : "") + (man.length ? man.join(" · ") + "\n" : "") + (files.length ? "Photo ids: " + x.photos.map(x => x.id).join(", ") : "");
   return {files, text, title:"Food log " + d};
@@ -383,7 +406,7 @@ async function shareDay(d){
   if (!navigator.share){ try{ await navigator.clipboard.writeText(parts.text); toast("Sharing isn't available here; day summary copied"); }catch(e){ toast("Sharing isn't available in this browser"); } return; }
   const data = {title:parts.title, text:parts.text};
   if (parts.files.length && navigator.canShare && navigator.canShare({files:parts.files})) data.files = parts.files;
-  try{ await navigator.share(data); await markSent(d, "share", phoneDay(d) && photosOn(d).map(p => p.id)); toast("Shared. Send it in Pulse's chat."); }
+  try{ await navigator.share(data); await markSent(d, "share", phoneDay(d) && photosOn(d).map(p => p.id)); toast("Shared. If you picked Pulse's chat, hit send there."); }
   catch(e){ if (e.name === "NotAllowedError") toast("Tap Share again"); else if (e.name !== "AbortError") toast("Share failed: " + e.message); }
 }
 $("#shareBtn").onclick = () => shareDay(curDay);

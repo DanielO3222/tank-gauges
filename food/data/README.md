@@ -4,7 +4,8 @@ Pulse (the health bot) writes this file; the app at `/tank-gauges/food/` fetches
 on open, when it comes back to the foreground, every 2 min, and on Settings → Refresh. Photos, notes and
 Daniel's manual entries stay on his phone (IndexedDB); they are **not** in this file.
 
-Merge rule in the app: for weight / bmi / bodyFat / muscle / steps / activeCal, what Daniel typed on the phone
+Merge rule in the app: for weight / bmi / bodyFat / muscle / steps / activeCal / exerciseMin / distanceMi /
+standHrs, what Daniel typed on the phone
 wins; Pulse's value fills in when his field is empty. Calories and macros come only from this file.
 
 ## Schema (v1)
@@ -24,7 +25,7 @@ wins; Pulse's value fills in when his field is empty. Calories and macros come o
     {"food": "2 dinner rolls", "calories": 240, "protein": 7, "fat": 4, "carbs": 44}
    ],
    "totals": {"calories": 960, "protein": 55, "fat": 28, "carbs": 122},
-   "steps": 8421, "activeCal": 512,
+   "steps": 8535, "activeCal": 679, "exerciseMin": 18, "distanceMi": 3.39, "standHrs": 15,
    "weight": 229.8, "bmi": 33.1, "bodyFat": 31.2, "muscle": 33.5,
    "pulseNote": "Protein is low today; aim for a shake tonight.",
    "reviewedAt": "2026-11-14T19:40:00-07:00"
@@ -40,6 +41,9 @@ wins; Pulse's value fills in when his field is empty. Calories and macros come o
   `photoId` (or with an unknown one) are listed as "Other items".
 - `totals` is optional; the app sums `entries` when it's missing. `pulse_update.py` fills it in.
 - All metric fields are optional; use `null` or leave them out when unknown.
+- Activity fields come from his Apple Fitness **Summary** screenshot: Move ring cal → `activeCal`,
+  Exercise ring min → `exerciseMin`, Stand ring hrs → `standHrs`, Steps → `steps`, Step Distance mi → `distanceMi`.
+  The dashboard's slim Activity strip shows 7-day averages (tap: 30-day), averaging only days that have a value.
 - `weights[]` feeds the weight trend chart (along with any `days[].weight` and phone entries).
 
 ## Tools (stdlib Python)
@@ -50,7 +54,8 @@ python3 /workspace/tank-gauges/app/food/tools/save_submission.py payload.json   
 
 # 2) Write the reviewed day and push it live:
 python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --json day.json
-python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --set steps=8421 weight=229.8
+python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --set steps=8535 activeCal=679 exerciseMin=18 distanceMi=3.39 standHrs=15
+python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --set weight=229.8 bodyFat=31.2
 python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --status needs-info --note "Milk or water in the shake?"
 python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --show 2026-11-14
 ```
@@ -59,9 +64,10 @@ python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --show 2026-11-14
 
 ## Submit payload (phone → Pulse's routine webhook)
 ```json
-{"app":"food-tracker","version":"fd-v1.0","date":"2026-11-14","tz":"America/Denver",
+{"app":"food-tracker","version":"fd-v1.1","date":"2026-11-14","tz":"America/Denver",
  "sentAt":"2026-11-14T19:02:11-07:00","notes":"ate half the rice, 2 rolls",
- "manual":{"weight":229.8,"bmi":null,"bodyFat":31.2,"muscle":33.5,"steps":8421,"activeCal":512},
+ "manual":{"weight":229.8,"bmi":null,"bodyFat":31.2,"muscle":33.5,"steps":8535,"activeCal":679,
+           "exerciseMin":18,"distanceMi":3.39,"standHrs":15},
  "heightIn":70,
  "photos":[{"id":"2026-11-14-121503-ab12","takenAt":"2026-11-14T12:15:03-07:00","mime":"image/jpeg","base64":"/9j/..."}]}
 ```

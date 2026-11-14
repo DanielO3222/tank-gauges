@@ -9,8 +9,9 @@ No build step, no dependencies. Service worker version string lives in `sw.js` a
 - `tests/e2e.py` — headless 390×844 test (screenshots go to /workspace/food-tracker/screenshots, not committed).
 
 ## Submit → Pulse
-Settings → *Send to Pulse*: Webhook URL + Sender key (from Pulse's routine panel), header `Authorization`,
-prefix `Bearer ` (both editable). Modes:
+The day view has one **Send to Pulse** button. It uses the mode chosen in Settings → *Send to Pulse uses*
+(default: share sheet). Webhook URL + Sender key (from Pulse's routine panel), header `Authorization`,
+prefix `Bearer ` (both editable) are only used by the webhook mode. Modes:
 1. **Webhook directly** — `fetch` POST with JSON. Cursor's webhook host (api2.cursor.sh) did not allow
    cross-origin calls from github.io when tested on 2026-11-14 (preflight returns no
    `Access-Control-Allow-Origin`), and it rejects keys sent any way other than the `Authorization` header, so a

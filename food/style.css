@@ -141,3 +141,28 @@ textarea{width:100%;background:#0c1015;border:1px solid var(--line);border-radiu
 .viewer img{max-width:100%;max-height:100%}
 .viewer .close{position:absolute;top:calc(var(--safe-t) + 12px);right:14px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-b) + 104px);background:#e9eef3;color:#0b0f14;font-weight:700;padding:10px 16px;border-radius:14px;z-index:70;max-width:90vw;text-align:center;font-size:14px}
+
+.xs{font-size:11px}
+/* slim activity strip */
+.card.act{padding:10px 12px 10px;cursor:pointer}
+.actHead{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.actHead .label{font-size:12px;text-transform:uppercase;letter-spacing:.8px}
+.seg{margin-left:auto;display:flex;background:#0c1015;border:1px solid var(--line);border-radius:999px;padding:2px}
+.seg i{font-style:normal;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;color:var(--mut)}
+.seg i.on{background:var(--steps);color:#04120d}
+.actRow{display:grid;grid-template-columns:1.15fr 1fr 1fr 1fr;gap:4px}
+.aCell{min-width:0}
+.aCell .v{font-size:19px;font-weight:800;letter-spacing:-.3px;white-space:nowrap}
+.aCell .v small{font-size:11px;font-weight:700;margin-left:2px;color:var(--mut)}
+.aCell .k{font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aCell.steps .v{color:#b39dff} .aCell.move .v{color:#ff375f} .aCell.ex .v{color:#a8f03c} .aCell.dist .v{color:#5ac8fa}
+/* compact body row */
+.bodyRow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.mini3{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:16px;padding:8px 10px;display:flex;flex-direction:column}
+.mini3 .label{font-size:11px}
+.mini3 b{font-size:19px;font-weight:800}
+.manGrid{grid-template-columns:repeat(3,1fr)!important;gap:8px!important}
+.manGrid label{font-size:12px!important}
+.manGrid input{padding:8px 10px!important;min-height:42px!important;font-size:16px!important}
+.aCell .k{line-height:1.2}
+.aCell .td{font-size:10px;color:#5d6876;white-space:nowrap;line-height:1.2}

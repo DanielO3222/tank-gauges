@@ -47,6 +47,13 @@
       <div class="ringWrap" id="calRing"></div>
     </section>
 
+    <!-- activity strip (tap toggles 7-day / 30-day average) -->
+    <section class="card act" id="actStrip" role="button" aria-label="Activity averages, tap to switch 7-day and 30-day">
+      <div class="actHead"><span class="label" id="actLbl">Activity · 7-day avg</span><span class="muted xs" id="actN"></span>
+        <span class="seg"><i id="seg7" class="on">7D</i><i id="seg30">30D</i></span></div>
+      <div class="actRow" id="actRow"></div>
+    </section>
+
     <!-- macros -->
     <section class="macros" id="macros"></section>
 
@@ -65,12 +72,11 @@
       <div id="wChart" class="chart"></div>
     </section>
 
-    <!-- body + activity -->
-    <section class="grid2">
-      <div class="card stat" data-open-today><div class="label">BMI</div><div class="num" id="bmi">—</div><div class="muted sm" id="bmiSub"></div></div>
-      <div class="card stat" data-open-today><div class="label">Body fat</div><div class="num" id="bf">—</div><div class="muted sm" id="bfSub"></div></div>
-      <div class="card stat" data-open-today><div class="label">Muscle</div><div class="num" id="mu">—</div><div class="muted sm" id="muSub"></div></div>
-      <div class="card stat act" data-open-today><div class="label">Steps today</div><div class="num" id="steps">—</div><div class="muted sm" id="actCal">— active kcal</div></div>
+    <!-- body (compact) -->
+    <section class="bodyRow">
+      <div class="mini3" data-open-today><span class="label">BMI</span><b id="bmi">—</b><span class="muted xs" id="bmiSub"></span></div>
+      <div class="mini3" data-open-today><span class="label">Body fat</span><b id="bf">—</b><span class="muted xs" id="bfSub"></span></div>
+      <div class="mini3" data-open-today><span class="label">Muscle</span><b id="mu">—</b><span class="muted xs" id="muSub"></span></div>
     </section>
 
     <!-- today log -->
@@ -106,18 +112,22 @@
         <div class="cardHead"><span>Body &amp; activity</span><span class="muted sm" id="manSaved"></span></div>
         <div class="manGrid">
           <label>Weight<span>lb</span><input id="m_weight" inputmode="decimal" type="text" autocomplete="off"></label>
-          <label>BMI<span id="bmiHint"></span><input id="m_bmi" inputmode="decimal" type="text" autocomplete="off"></label>
           <label>Body fat<span>%</span><input id="m_bodyFat" inputmode="decimal" type="text" autocomplete="off"></label>
           <label>Muscle<span>%</span><input id="m_muscle" inputmode="decimal" type="text" autocomplete="off"></label>
+          <label>BMI<span id="bmiHint"></span><input id="m_bmi" inputmode="decimal" type="text" autocomplete="off"></label>
           <label>Steps<span></span><input id="m_steps" inputmode="numeric" type="text" autocomplete="off"></label>
-          <label>Active cal<span>kcal</span><input id="m_activeCal" inputmode="numeric" type="text" autocomplete="off"></label>
+          <label>Move<span>cal</span><input id="m_activeCal" inputmode="numeric" type="text" autocomplete="off"></label>
+          <label>Exercise<span>min</span><input id="m_exerciseMin" inputmode="numeric" type="text" autocomplete="off"></label>
+          <label>Distance<span>mi</span><input id="m_distanceMi" inputmode="decimal" type="text" autocomplete="off"></label>
+          <label>Stand<span>hrs</span><input id="m_standHrs" inputmode="numeric" type="text" autocomplete="off"></label>
         </div>
-        <div class="muted sm hint">From your BIA scale and Apple Fitness. Grey numbers are Pulse's; what you type wins.</div>
+        <div class="muted sm hint">From your BIA scale and Apple Fitness Summary (Move, Exercise, Stand, Steps, Distance). Grey numbers are Pulse's; what you type wins.</div>
       </section>
       <div class="actions">
-        <button id="submitBtn" class="primary">Submit day to Pulse</button>
-        <button id="shareBtn" class="secondary">Share day…</button>
+        <button id="submitBtn" class="primary">Send to Pulse</button>
+        <div id="sendHow" class="muted sm center"></div>
         <div id="sendStatus" class="muted sm center"></div>
+        <button id="shareBtn" class="linkbtn center" hidden>Share instead…</button>
       </div>
     </div>
   </section>
@@ -162,11 +172,11 @@
           <label class="fld">Auth header<input id="s_authHeader" type="text" autocapitalize="off"></label>
           <label class="fld">Key prefix<input id="s_authScheme" type="text" autocapitalize="off"></label>
         </div>
-        <label class="fld">Submit sends by
+        <label class="fld">Send to Pulse uses
           <select id="s_sendMode">
-            <option value="direct">Webhook directly from the app</option>
-            <option value="shortcut">iOS Shortcut (copies the day, runs shortcut)</option>
-            <option value="share">Share sheet only</option>
+            <option value="share">Share sheet (pick Pulse's chat)</option>
+            <option value="shortcut">iOS Shortcut "Send to Pulse" (pings Pulse directly)</option>
+            <option value="direct">Webhook from the app (advanced; usually blocked by the browser)</option>
           </select></label>
         <label class="fld">Shortcut name<input id="s_shortcutName" type="text"></label>
         <div class="muted sm">Stored only on this phone. Defaults send <code>Authorization: Bearer &lt;key&gt;</code>.</div>
