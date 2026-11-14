@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T15:43:10-07:00",
+ "updated": "2026-11-14T15:45:51-07:00",
  "start": {
   "date": "2026-11-10",
   "lb": 231.4
@@ -36,17 +36,19 @@
      "protein": 7,
      "fat": 6,
      "carbs": 44
+    },
+    {
+     "food": "Jam on a roll (~1.5 tbsp)",
+     "calories": 75,
+     "protein": 0,
+     "fat": 0,
+     "carbs": 19,
+     "note": "Assumed one of the 2 rolls already logged"
     }
    ],
    "pulseNote": "Solid protein at dinner. You still have about 1,200+ kcal and 100+ g protein of room, so lean protein is the best use of it.",
-   "totals": {
-    "calories": 980,
-    "protein": 57,
-    "fat": 31,
-    "carbs": 114
-   },
    "status": "reviewed",
-   "reviewedAt": "2026-11-14T15:43:10-07:00",
+   "reviewedAt": "2026-11-14T15:45:51-07:00",
    "weight": 229,
    "bmi": 33.9,
    "bodyFat": 33,
@@ -55,7 +57,13 @@
    "exerciseMin": 23,
    "standHrs": 10,
    "steps": 9106,
-   "distanceMi": 3.59
+   "distanceMi": 3.59,
+   "totals": {
+    "calories": 1055,
+    "protein": 57,
+    "fat": 31,
+    "carbs": 133
+   }
   }
  }
 }
