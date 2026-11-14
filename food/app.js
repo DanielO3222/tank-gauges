@@ -1,7 +1,7 @@
 /* Fuel — food & weight tracker. Photos/notes/manual entries live on the phone (IndexedDB + localStorage).
    Pulse (health bot) reviews submitted days and writes its numbers to data/log.json, which this app merges in. */
 "use strict";
-const APP_VERSION = "fd-v1.2";
+const APP_VERSION = "fd-v1.3";
 const TZ = "America/Denver";
 const K_SET = "fd-settings", K_LOG = "fd-log";
 const $ = s => document.querySelector(s);
@@ -249,9 +249,11 @@ async function renderToday(){
   $("#todayList").innerHTML = rows.length ? rows.join("") : '<div class="empty">No food yet today. Tap <b>+</b> to snap your meal.</div>';
 }
 
+let prepT = null;
 function render(){
-  $("#hdrDate").textContent = fmtD(today(), {weekday:"long", month:"short", day:"numeric"});
-  renderWeek(); renderHero(); renderActivity(); renderWeight(); renderStats(); renderToday();
+  $("#hdrDate").textContent = fmtD(today(), {weekday:"short", month:"short", day:"numeric"});
+  renderWeek(); renderHero(); renderActivity(); renderWeight(); renderStats(); renderToday(); renderHdrSend();
+  clearTimeout(prepT); prepT = setTimeout(() => prepShare(today()), 150);   // share sheet needs files ready at tap time
   $("#syncDot").className = "syncdot " + (online === true ? "ok" : online === false ? "off" : "");
   $("#foot").textContent = APP_VERSION + (logAt ? " · Pulse data " + new Date(logAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}) : "");
   if (curDay) renderDay();
@@ -352,15 +354,32 @@ async function buildPayload(date){
 async function markSent(date, via, ids){ const p = phoneDay(date); p.submittedAt = new Date().toISOString(); p.submittedVia = via; p.submittedIds = ids; await savePhoneDay(date); render(); }
 let sending = false;
 function sendMode(){ return S.sendMode === "shortcut" ? "shortcut" : (S.sendMode === "direct" && S.webhookUrl && S.senderKey) ? "direct" : "share"; }
-$("#submitBtn").onclick = () => {
-  const d = curDay; if (sending) return;
+let failDay = null;
+function dayHasContent(d){ const p = DAYS[d] || {}; return photosOn(d).length > 0 || !!(p.notes || "").trim() || FIELDS.some(f => p.manual && isNum(p.manual[f])); }
+// One send path for both the header pill (today) and the day view button. Must be called straight from the tap.
+function sendDay(d, btn){
+  if (sending) return; failDay = d;
+  if (!dayHasContent(d)){ toast("Nothing to send yet. Add a photo, a note or your numbers first."); return; }
   if (S.sendMode === "shortcut") return viaShortcut(d);
-  if (S.sendMode === "direct" && S.webhookUrl && S.senderKey) return viaWebhook(d);
+  if (S.sendMode === "direct" && S.webhookUrl && S.senderKey) return viaWebhook(d, btn);
   return shareDay(d);                                   // default: iOS share sheet
-};
-async function viaWebhook(d){
+}
+$("#submitBtn").onclick = () => sendDay(curDay, $("#submitBtn"));
+$("#hdrSend").onclick = () => sendDay(today(), $("#hdrSend"));
+function renderHdrSend(){
+  const t = today(), x = merged(t), p = DAYS[t] || {}, b = $("#hdrSend"), st = $("#hdrSendSt");
+  let s, cls;
+  if (x.status === "reviewed" && !x.newSince){ s = "Reviewed ✓"; cls = "done"; }
+  else if (x.status === "question"){ s = "Pulse asked"; cls = "ask"; }
+  else if (p.submittedAt && x.newSince){ s = x.newSince + " new since send"; cls = ""; }
+  else if (p.submittedAt){ s = "Sent " + new Date(p.submittedAt).toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit"}); cls = "done"; }
+  else { s = dayHasContent(t) ? "Not sent" : "Nothing yet"; cls = ""; }
+  st.textContent = s; b.className = "sendPill " + cls;
+  b.setAttribute("aria-label", "Send today to Pulse. " + s);
+}
+async function viaWebhook(d, btn){
   if (!S.webhookUrl || !S.senderKey){ toast("Paste Pulse's webhook URL and sender key in Settings first"); openSettings(); return; }
-  sending = true; const btn = $("#submitBtn"); btn.disabled = true; btn.textContent = "Sending…";
+  sending = true; btn = btn || $("#submitBtn"); const old = btn.innerHTML; btn.disabled = true; if (btn.id === "submitBtn") btn.textContent = "Sending…";
   try{
     const pl = await buildPayload(d), body = JSON.stringify(pl);
     const h = {"Content-Type":"application/json"}; h[S.authHeader || "Authorization"] = (S.authScheme || "") + S.senderKey;
@@ -374,7 +393,7 @@ async function viaWebhook(d){
     else { let m = ""; try{ m = (await r.json()).message || ""; }catch(e){}
       $("#failMsg").textContent = `Pulse's webhook answered ${r.status}${m ? " (" + m + ")" : ""}. ` + (r.status === 401 || r.status === 403 ? "Check the sender key in Settings." : r.status === 413 ? "Too much data; try fewer photos." : "Check the URL in Settings, or that Pulse's routine isn't paused.");
       $("#failSheet").hidden = false; }
-  } finally { sending = false; btn.disabled = false; renderDay(); }
+  } finally { sending = false; btn.disabled = false; if (btn.id !== "submitBtn") btn.innerHTML = old; render(); }
 }
 function viaShortcut(d){
   const name = S.shortcutName || "Send to Pulse";
@@ -410,8 +429,8 @@ async function shareDay(d){
   catch(e){ if (e.name === "NotAllowedError") toast("Tap Share again"); else if (e.name !== "AbortError") toast("Share failed: " + e.message); }
 }
 $("#shareBtn").onclick = () => shareDay(curDay);
-$("#failShare").onclick = () => shareDay(curDay);
-$("#failShortcut").onclick = () => { $("#failSheet").hidden = true; viaShortcut(curDay); };
+$("#failShare").onclick = () => shareDay(failDay || curDay || today());
+$("#failShortcut").onclick = () => { $("#failSheet").hidden = true; viaShortcut(failDay || curDay || today()); };
 $("#failClose").onclick = () => $("#failSheet").hidden = true;
 
 /* ---------- Pulse data (data/log.json) ---------- */
