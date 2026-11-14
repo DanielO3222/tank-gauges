@@ -23,14 +23,10 @@ LOG = os.path.normpath(os.path.join(HERE, "..", "data", "log.json"))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
 REL = os.path.relpath(LOG, REPO)
 NUM = ["weight", "bmi", "bodyFat", "muscle", "steps", "activeCal"]
-SECRET = "/home/box/.secrets/github-tankgauges.txt"
-CRED = ('!f() { echo username=DanielO3222; '
-        'if [ -n "$GITHUB_TANKGAUGES_PASSWORD" ]; then echo "password=$GITHUB_TANKGAUGES_PASSWORD"; '
-        'else echo "password=$(cat ' + SECRET + ')"; fi; }; f')
 
 def git(*a, check=True):
-    cmd = ["git", "-C", REPO, "-c", "credential.helper=", "-c", "credential.helper=" + CRED,
-           "-c", "user.name=DanielO3222", "-c", "user.email=odisus@mail.grokbot.com", *a]
+    # push auth comes from the box's git config (gh auth git-credential for github.com)
+    cmd = ["git", "-C", REPO, "-c", "user.name=DanielO3222", "-c", "user.email=odisus@mail.grokbot.com", *a]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if check and r.returncode: sys.exit(f"git {a[0]} failed: {r.stderr.strip()[-400:]}")
     return r
