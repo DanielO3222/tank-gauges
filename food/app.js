@@ -1,7 +1,7 @@
 /* Fuel — food & weight tracker. Photos/notes/manual entries live on the phone (IndexedDB + localStorage).
    Pulse (health bot) reviews submitted days and writes its numbers to data/log.json, which this app merges in. */
 "use strict";
-const APP_VERSION = "fd-v1.1";
+const APP_VERSION = "fd-v1.2";
 const TZ = "America/Denver";
 const K_SET = "fd-settings", K_LOG = "fd-log";
 const $ = s => document.querySelector(s);
@@ -128,7 +128,7 @@ function latest(field){
 function ring(val, max, color, size, stroke, inner){
   const r = (size - stroke) / 2, c = 2 * Math.PI * r, f = isNum(val) && max > 0 ? Math.min(1, val / max) : 0;
   return `<svg viewBox="0 0 ${size} ${size}" width="100%" height="100%"><g transform="rotate(-90 ${size/2} ${size/2})">
-    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-opacity=".16" stroke-width="${stroke}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-opacity=".24" stroke-width="${stroke}"/>
     <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"
       stroke-dasharray="${(c*f).toFixed(1)} ${c.toFixed(1)}" ${f ? "" : 'stroke-opacity="0"'}/></g>${inner || ""}</svg>`;
 }
@@ -136,7 +136,7 @@ function rangeTxt(a){ return a[0] === a[1] ? fmt(a[0]) : fmt(a[0]) + "–" + fmt
 
 function renderWeek(){
   const t = today(), days = []; for (let i = 6; i >= 0; i--) days.push(addDays(t, -i));
-  const top = Math.max(3000, S.cal[1] * 1.25); let sum = 0, n = 0;
+  const top = S.cal[1] * 1.15; let sum = 0, n = 0;
   $("#week").innerHTML = days.map(d => {
     const x = merged(d), kc = x.totals && isNum(x.totals.calories) ? +x.totals.calories : null;
     if (kc !== null){ sum += kc; n++; }
@@ -163,14 +163,14 @@ function renderHero(){
   b.textContent = STATUS_TXT[x.status] + (x.newSince ? ` · ${x.newSince} new` : "");
   const pct = kc === null ? "" : Math.round(kc / S.cal[1] * 100) + "%";
   $("#calRing").innerHTML = ring(kc, S.cal[1], kc !== null && kc > S.cal[1] ? "var(--bad)" : "var(--cal)", 132, 13,
-    `<text x="66" y="62" text-anchor="middle" class="ringTxt" font-size="22">${kc === null ? "🍽" : pct}</text>
-     <text x="66" y="84" text-anchor="middle" fill="#7e8a99" font-size="11">${kc === null ? "no data" : "of " + fmt(S.cal[1])}</text>`);
+    `<text x="66" y="64" text-anchor="middle" class="ringTxt" font-size="26">${kc === null ? "🍽" : pct}</text>
+     <text x="66" y="88" text-anchor="middle" fill="#8a8a8e" font-size="15">${kc === null ? "no data" : "of " + fmt(S.cal[1])}</text>`);
   const M = [["Protein","protein","var(--pro)"],["Fat","fat","var(--fat)"],["Carbs","carbs","var(--carb)"]];
   $("#macros").innerHTML = M.map(([lbl, k, col]) => {
     const v = x.totals && isNum(x.totals[k]) ? +x.totals[k] : null, tg = S[k];
     return `<div class="macro" data-open-today><div class="label">${lbl}</div><div class="ringWrap">${ring(v, tg[1], col, 74, 8,
-      `<text x="37" y="42" text-anchor="middle" class="ringTxt" font-size="15">${v === null ? "—" : Math.round(v)}</text>`)}</div>
-      <div class="v">${v === null ? "—" : Math.round(v) + "g"}</div><div class="t">of ${rangeTxt(tg)} g</div></div>`;
+      `<text x="37" y="44" text-anchor="middle" fill="#8a8a8e" font-size="18">${v === null ? "" : Math.round(v / tg[1] * 100) + "%"}</text>`)}</div>
+      <div class="v">${v === null ? "—" : Math.round(v) + "g"}</div><div class="t">of ${rangeTxt(tg)}g</div></div>`;
   }).join("");
 }
 
@@ -187,7 +187,7 @@ function renderWeight(){
   $("#wStart").textContent = "Start " + fmt(start, 1) + " · " + fmtD(S.startDate, {month:"short", day:"numeric"});
   $("#wGoal").textContent = "Goal " + fmt(goal, 0);
   // chart: scale weight dots + smoothed trend (EMA), last 60 days
-  const W = 340, H = 140, P = {l:34, r:10, t:10, b:22};
+  const W = 340, H = 92, P = {l:30, r:8, t:6, b:16};
   const pts = ws.filter(x => x.date >= addDays(today(), -60));
   if (!pts.length){ $("#wChart").innerHTML = ""; return; }
   const d0 = dObj(pts[0].date).getTime(), d1 = Math.max(dObj(today()).getTime(), d0 + 864e5);
@@ -195,11 +195,11 @@ function renderWeight(){
   if (hi - lo < 6){ const m = (hi + lo) / 2; lo = m - 3; hi = m + 3; } lo = Math.floor(lo - 1); hi = Math.ceil(hi + 1);
   const X = d => P.l + (dObj(d).getTime() - d0) / (d1 - d0) * (W - P.l - P.r), Y = v => P.t + (hi - v) / (hi - lo) * (H - P.t - P.b);
   let ema = null; const tr = pts.map(p => (ema = ema === null ? p.lb : ema + 0.25 * (p.lb - ema), [X(p.date), Y(ema)]));
-  const grid = [hi, (hi+lo)/2, lo].map(v => `<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1e2530"/><text x="${P.l-6}" y="${Y(v)+4}" text-anchor="end" fill="#7e8a99" font-size="10">${Math.round(v)}</text>`).join("");
+  const grid = [hi, (hi+lo)/2, lo].map(v => `<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#2c2c2e"/><text x="${P.l-6}" y="${Y(v)+4}" text-anchor="end" fill="#8a8a8e" font-size="10">${Math.round(v)}</text>`).join("");
   const line = tr.length > 1 ? `<polyline points="${tr.map(p => p.map(n => n.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="var(--wt)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : "";
-  const dots = pts.map(p => `<circle cx="${X(p.date).toFixed(1)}" cy="${Y(p.lb).toFixed(1)}" r="3.5" fill="#0c1015" stroke="#c9c1ff" stroke-width="1.6"/>`).join("");
-  const ax = `<text x="${P.l}" y="${H-6}" fill="#7e8a99" font-size="10">${fmtD(pts[0].date,{month:"short",day:"numeric"})}</text><text x="${W-P.r}" y="${H-6}" text-anchor="end" fill="#7e8a99" font-size="10">Today</text>`;
-  const hint = pts.length < 2 ? `<text x="${(W+P.l)/2}" y="${H/2}" text-anchor="middle" fill="#7e8a99" font-size="11">Log weigh-ins to see your trend</text>` : "";
+  const dots = pts.map(p => `<circle cx="${X(p.date).toFixed(1)}" cy="${Y(p.lb).toFixed(1)}" r="3.5" fill="#000" stroke="#d9a6ff" stroke-width="1.6"/>`).join("");
+  const ax = `<text x="${P.l}" y="${H-6}" fill="#8a8a8e" font-size="10">${fmtD(pts[0].date,{month:"short",day:"numeric"})}</text><text x="${W-P.r}" y="${H-6}" text-anchor="end" fill="#8a8a8e" font-size="10">Today</text>`;
+  const hint = pts.length < 2 ? `<text x="${(W+P.l)/2}" y="${H/2}" text-anchor="middle" fill="#8a8a8e" font-size="11">Log weigh-ins to see your trend</text>` : "";
   $("#wChart").innerHTML = `<svg viewBox="0 0 ${W} ${H}">${grid}${line}${dots}${ax}${hint}</svg>`;
 }
 
