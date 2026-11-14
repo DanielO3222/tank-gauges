@@ -1,7 +1,7 @@
 /* Fuel — food & weight tracker. Photos/notes/manual entries live on the phone (IndexedDB + localStorage).
    Pulse (health bot) reviews submitted days and writes its numbers to data/log.json, which this app merges in. */
 "use strict";
-const APP_VERSION = "fd-v1.3";
+const APP_VERSION = "fd-v1.4";
 const TZ = "America/Denver";
 const K_SET = "fd-settings", K_LOG = "fd-log";
 const $ = s => document.querySelector(s);
@@ -23,6 +23,9 @@ const fmt = (n, d=0) => isNum(n) ? (+n).toLocaleString("en-US", {maximumFraction
 function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
 /* ---------- dates (America/Denver) ---------- */
+let selDay = null;   // dashboard's selected day; null = follow today (rolls over at midnight)
+function sel(){ const t = today(); return selDay && selDay < t ? selDay : t; }
+const shortD = d => fmtD(d, {weekday:"short"}) + " " + (+d.slice(5,7)) + "/" + (+d.slice(8));
 function today(){ return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); }
 function addDays(d, n){ const t = new Date(d + "T12:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0,10); }
 function dObj(d){ return new Date(d + "T12:00:00Z"); }
@@ -120,7 +123,8 @@ function weightSeries(){
 }
 function latest(field){
   const ds = new Set([...Object.keys(DAYS), ...Object.keys(LOG.days || {})]);
-  for (const d of [...ds].sort().reverse()){ const x = merged(d); if (isNum(x.m[field])) return {v:x.m[field], date:d, src:x.src[field]}; }
+  const s = sel();
+  for (const d of [...ds].filter(d => d <= s).sort().reverse()){ const x = merged(d); if (isNum(x.m[field])) return {v:x.m[field], date:d, src:x.src[field]}; }
   return null;
 }
 
@@ -135,14 +139,14 @@ function ring(val, max, color, size, stroke, inner){
 function rangeTxt(a){ return a[0] === a[1] ? fmt(a[0]) : fmt(a[0]) + "–" + fmt(a[1]); }
 
 function renderWeek(){
-  const t = today(), days = []; for (let i = 6; i >= 0; i--) days.push(addDays(t, -i));
+  const t = today(), s = sel(), days = []; for (let i = 6; i >= 0; i--) days.push(addDays(s, -i));
   const top = S.cal[1] * 1.15; let sum = 0, n = 0;
   $("#week").innerHTML = days.map(d => {
     const x = merged(d), kc = x.totals && isNum(x.totals.calories) ? +x.totals.calories : null;
     if (kc !== null){ sum += kc; n++; }
     const cls = kc === null ? "" : kc > S.cal[1] ? "over" : kc < S.cal[0] ? "low" : "";
     const hasAny = x.photos.length || x.notes || kc !== null;
-    return `<button class="wd ${d === t ? "today" : ""}" data-day="${d}" aria-label="${fmtD(d,{weekday:"long",month:"short",day:"numeric"})}">
+    return `<button class="wd ${d === t ? "today" : ""} ${d === s && s !== t ? "sel" : ""}" data-day="${d}" aria-label="${fmtD(d,{weekday:"long",month:"short",day:"numeric"})}">
       <span class="dn">${fmtD(d,{weekday:"narrow"})}</span>
       <span class="bar"><span class="band" style="bottom:${S.cal[0]/top*100}%;height:${(S.cal[1]-S.cal[0])/top*100}%"></span>
         ${kc !== null ? `<span class="fill ${cls}" style="height:${Math.min(100, kc/top*100)}%"></span>` : ""}</span>
@@ -154,7 +158,8 @@ function renderWeek(){
 }
 
 function renderHero(){
-  const x = merged(today()), kc = x.totals && isNum(x.totals.calories) ? +x.totals.calories : null;
+  const sd = sel(); $("#calLbl").textContent = sd === today() ? "Calories today" : "Calories · " + shortD(sd);
+  const x = merged(sd), kc = x.totals && isNum(x.totals.calories) ? +x.totals.calories : null;
   $("#calEaten").textContent = kc === null ? "—" : fmt(kc);
   if (kc === null) $("#calLeft").textContent = "Target " + rangeTxt(S.cal) + (x.photos.length ? " · waiting for Pulse" : "");
   else if (kc > S.cal[1]) $("#calLeft").textContent = fmt(kc - S.cal[1]) + " over · target " + rangeTxt(S.cal);
@@ -175,9 +180,9 @@ function renderHero(){
 }
 
 function renderWeight(){
-  const ws = weightSeries(), cur = ws.length ? ws[ws.length-1] : null, start = +S.startWeight, goal = +S.goalWeight;
+  const sd = sel(), ws = weightSeries().filter(w => w.date <= sd), cur = ws.length ? ws[ws.length-1] : null, start = +S.startWeight, goal = +S.goalWeight;
   $("#wNow").textContent = cur ? fmt(cur.lb, 1) : "—";
-  $("#wAsOf").textContent = cur ? (cur.date === today() ? "today" : fmtD(cur.date, {month:"short", day:"numeric"})) : "";
+  $("#wAsOf").textContent = cur ? (cur.date === today() ? "today" : cur.date === sd ? shortD(sd) : fmtD(cur.date, {month:"short", day:"numeric"})) : "";
   const lost = cur ? start - cur.lb : 0, togo = cur ? cur.lb - goal : start - goal;
   $("#wLost").textContent = cur ? (lost >= 0 ? "" : "+") + fmt(Math.abs(lost), 1) : "—";
   $("#wToGo").textContent = fmt(Math.max(0, togo), 1);
@@ -188,9 +193,9 @@ function renderWeight(){
   $("#wGoal").textContent = "Goal " + fmt(goal, 0);
   // chart: scale weight dots + smoothed trend (EMA), last 60 days
   const W = 340, H = 92, P = {l:30, r:8, t:6, b:16};
-  const pts = ws.filter(x => x.date >= addDays(today(), -60));
+  const pts = ws.filter(x => x.date >= addDays(sd, -60));
   if (!pts.length){ $("#wChart").innerHTML = ""; return; }
-  const d0 = dObj(pts[0].date).getTime(), d1 = Math.max(dObj(today()).getTime(), d0 + 864e5);
+  const d0 = dObj(pts[0].date).getTime(), d1 = Math.max(dObj(sd).getTime(), d0 + 864e5);
   let lo = Math.min(...pts.map(p => p.lb)), hi = Math.max(...pts.map(p => p.lb));
   if (hi - lo < 6){ const m = (hi + lo) / 2; lo = m - 3; hi = m + 3; } lo = Math.floor(lo - 1); hi = Math.ceil(hi + 1);
   const X = d => P.l + (dObj(d).getTime() - d0) / (d1 - d0) * (W - P.l - P.r), Y = v => P.t + (hi - v) / (hi - lo) * (H - P.t - P.b);
@@ -198,33 +203,33 @@ function renderWeight(){
   const grid = [hi, (hi+lo)/2, lo].map(v => `<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#2c2c2e"/><text x="${P.l-6}" y="${Y(v)+4}" text-anchor="end" fill="#8a8a8e" font-size="10">${Math.round(v)}</text>`).join("");
   const line = tr.length > 1 ? `<polyline points="${tr.map(p => p.map(n => n.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="var(--wt)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>` : "";
   const dots = pts.map(p => `<circle cx="${X(p.date).toFixed(1)}" cy="${Y(p.lb).toFixed(1)}" r="3.5" fill="#000" stroke="#d9a6ff" stroke-width="1.6"/>`).join("");
-  const ax = `<text x="${P.l}" y="${H-6}" fill="#8a8a8e" font-size="10">${fmtD(pts[0].date,{month:"short",day:"numeric"})}</text><text x="${W-P.r}" y="${H-6}" text-anchor="end" fill="#8a8a8e" font-size="10">Today</text>`;
+  const ax = `<text x="${P.l}" y="${H-6}" fill="#8a8a8e" font-size="10">${fmtD(pts[0].date,{month:"short",day:"numeric"})}</text><text x="${W-P.r}" y="${H-6}" text-anchor="end" fill="#8a8a8e" font-size="10">${sd === today() ? "Today" : shortD(sd)}</text>`;
   const hint = pts.length < 2 ? `<text x="${(W+P.l)/2}" y="${H/2}" text-anchor="middle" fill="#8a8a8e" font-size="11">Log weigh-ins to see your trend</text>` : "";
   $("#wChart").innerHTML = `<svg viewBox="0 0 ${W} ${H}">${grid}${line}${dots}${ax}${hint}</svg>`;
 }
 
 function renderStats(){
-  const asOf = l => l ? (l.date === today() ? "today" : fmtD(l.date, {month:"short", day:"numeric"})) + (l.src === "auto" ? " · from height" : "") : "enter in day view";
+  const asOf = l => l ? (l.date === today() ? "today" : l.date === sel() ? shortD(l.date) : fmtD(l.date, {month:"short", day:"numeric"})) + (l.src === "auto" ? " · from height" : "") : "enter in day view";
   const b = latest("bmi"); $("#bmi").textContent = b ? fmt(b.v, 1) : "—"; $("#bmiSub").textContent = b ? asOf(b) : (isNum(S.heightIn) ? "log a weight" : "add height in Settings");
   const f = latest("bodyFat"); $("#bf").textContent = f ? fmt(f.v, 1) + "%" : "—"; $("#bfSub").textContent = asOf(f);
   const m = latest("muscle"); $("#mu").textContent = m ? fmt(m.v, 1) + "%" : "—"; $("#muSub").textContent = asOf(m);
 }
 /* slim activity strip: 7-day average by default, tap for 30-day; averages only over days that have a value */
 const ACT = [["steps","Steps","steps",0,""],["activeCal","Move","move",0,"cal"],["exerciseMin","Exercise","ex",0,"min"],["distanceMi","Distance","dist",2,"mi"]];
-function actAvg(field, n){ let s = 0, k = 0; const t = today();
+function actAvg(field, n){ let s = 0, k = 0; const t = sel();
   for (let i = 0; i < n; i++){ const v = merged(addDays(t, -i)).m[field]; if (isNum(v)){ s += +v; k++; } }
   return {avg: k ? s / k : null, n: k}; }
 function renderActivity(){
-  const n = localStorage.getItem(K_ACT) === "30" ? 30 : 7, td = merged(today()).m;
-  let days = 0; const t = today();
+  const n = localStorage.getItem(K_ACT) === "30" ? 30 : 7, td = merged(sel()).m;
+  let days = 0; const t = sel();
   for (let i = 0; i < n; i++){ const m = merged(addDays(t, -i)).m; if (["steps","activeCal","exerciseMin","distanceMi","standHrs"].some(f => isNum(m[f]))) days++; }
   $("#actLbl").textContent = "Activity · " + (n === 30 ? "30-day avg" : "7-day avg");
   const st = actAvg("standHrs", n);
-  $("#actN").textContent = (days ? days + (days === 1 ? " day" : " days") : "no data yet") + (st.avg !== null ? " · stand " + fmt(st.avg, 0) + "h" : "");
+  $("#actN").textContent = (sel() === today() ? "" : "to " + sel().slice(5).replace(/^0/, "").replace("-0", "/").replace("-", "/") + " · ") + (days ? days + (days === 1 ? " day" : " days") : "no data yet") + (st.avg !== null ? " · stand " + fmt(st.avg, 0) + "h" : "");
   $("#seg7").className = n === 7 ? "on" : ""; $("#seg30").className = n === 30 ? "on" : "";
   $("#actRow").innerHTML = ACT.map(([f, lbl, cls, dp, unit]) => { const a = actAvg(f, n);
     const tv = isNum(td[f]) ? fmt(td[f], dp) : "—";
-    return `<div class="aCell ${cls}"><div class="v">${a.avg === null ? "—" : fmt(a.avg, dp)}${unit && a.avg !== null ? `<small>${unit}</small>` : ""}</div><div class="k">${lbl}</div><div class="td">today ${tv}</div></div>`; }).join("");
+    return `<div class="aCell ${cls}"><div class="v">${a.avg === null ? "—" : fmt(a.avg, dp)}${unit && a.avg !== null ? `<small>${unit}</small>` : ""}</div><div class="k">${lbl}</div><div class="td">${sel() === today() ? "today" : shortD(sel())} ${tv}</div></div>`; }).join("");
 }
 $("#actStrip").addEventListener("click", () => { localStorage.setItem(K_ACT, localStorage.getItem(K_ACT) === "30" ? "7" : "30"); renderActivity(); });
 
@@ -245,15 +250,19 @@ async function foodRows(x, includePhotos = true){
   return rows;
 }
 async function renderToday(){
-  const x = merged(today()), rows = await foodRows(x, true);
-  $("#todayList").innerHTML = rows.length ? rows.join("") : '<div class="empty">No food yet today. Tap <b>+</b> to snap your meal.</div>';
+  const sd = sel(), x = merged(sd), rows = await foodRows(x, true);
+  $("#foodLbl").textContent = sd === today() ? "Today's food" : "Food · " + shortD(sd);
+  $("#todayList").innerHTML = rows.length ? rows.join("") : `<div class="empty">No food ${sd === today() ? "yet today" : "logged " + shortD(sd)}. Tap <b>+</b> to add a photo.</div>`;
 }
 
 let prepT = null;
 function render(){
-  $("#hdrDate").textContent = fmtD(today(), {weekday:"short", month:"short", day:"numeric"});
+  const sd = sel(), isT = sd === today();
+  $("#hdrDate").textContent = shortD(sd); $("#hdrDate").classList.toggle("past", !isT);
+  $("#hdrDate").setAttribute("aria-label", isT ? "Showing today" : "Showing " + fmtD(sd, {weekday:"long", month:"long", day:"numeric"}) + ". Tap to jump to today");
+  $("#hdrNext").disabled = isT;
   renderWeek(); renderHero(); renderActivity(); renderWeight(); renderStats(); renderToday(); renderHdrSend();
-  clearTimeout(prepT); prepT = setTimeout(() => prepShare(today()), 150);   // share sheet needs files ready at tap time
+  clearTimeout(prepT); prepT = setTimeout(() => prepShare(sel()), 150);   // share sheet needs files ready at tap time
   $("#syncDot").className = "syncdot " + (online === true ? "ok" : online === false ? "off" : "");
   $("#foot").textContent = APP_VERSION + (logAt ? " · Pulse data " + new Date(logAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}) : "");
   if (curDay) renderDay();
@@ -261,7 +270,7 @@ function render(){
 
 /* ---------- day view ---------- */
 function openDay(date){ curDay = date; $("#day").hidden = false; $("#day").scrollTop = 0; fillDayInputs(); renderDay(); prepShare(date); }
-function closeDay(){ curDay = null; $("#day").hidden = true; render(); }
+function closeDay(){ if (curDay) selDay = curDay >= today() ? null : curDay; curDay = null; $("#day").hidden = true; render(); }
 function fillDayInputs(){
   const p = phoneDay(curDay), x = merged(curDay);
   $("#notes").value = p.notes || ""; $("#noteSaved").textContent = "";
@@ -323,13 +332,13 @@ $("#photoGrid").addEventListener("click", async e => {
 $("#viewClose").onclick = () => $("#viewer").hidden = true; $("#viewer").onclick = e => { if (e.target.id === "viewer") $("#viewer").hidden = true; };
 
 /* ---------- add photo ---------- */
-function openAdd(){ const d = curDay || today(); $("#addTitle").textContent = "Add to " + dayLabel(d); $("#addSheet").hidden = false; }
+function openAdd(){ const d = curDay || sel(); $("#addTitle").textContent = "Add to " + dayLabel(d); $("#addSheet").hidden = false; }
 $("#fab").onclick = openAdd;
 $("#addCancel").onclick = () => $("#addSheet").hidden = true;
 $("#addSheet").onclick = e => { if (e.target.id === "addSheet") $("#addSheet").hidden = true; };
 $("#takePhoto").onclick = () => { $("#addSheet").hidden = true; $("#camIn").click(); };
 $("#pickPhoto").onclick = () => { $("#addSheet").hidden = true; $("#libIn").click(); };
-["#camIn", "#libIn"].forEach(s => $(s).addEventListener("change", async e => { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) await addFiles(fs, curDay || today()); if (curDay) prepShare(curDay); }));
+["#camIn", "#libIn"].forEach(s => $(s).addEventListener("change", async e => { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) await addFiles(fs, curDay || sel()); if (curDay) prepShare(curDay); }));
 
 /* ---------- submit to Pulse ---------- */
 function b64(blob){ return new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.readAsDataURL(blob); }); }
@@ -365,9 +374,13 @@ function sendDay(d, btn){
   return shareDay(d);                                   // default: iOS share sheet
 }
 $("#submitBtn").onclick = () => sendDay(curDay, $("#submitBtn"));
-$("#hdrSend").onclick = () => sendDay(today(), $("#hdrSend"));
+$("#hdrSend").onclick = () => sendDay(sel(), $("#hdrSend"));
+function setSel(d){ selDay = d >= today() ? null : d; render(); }
+$("#hdrPrev").onclick = () => setSel(addDays(sel(), -1));
+$("#hdrNext").onclick = () => { if (sel() < today()) setSel(addDays(sel(), 1)); };
+$("#hdrDate").onclick = () => { if (sel() !== today()){ setSel(today()); toast("Back to today"); } };
 function renderHdrSend(){
-  const t = today(), x = merged(t), p = DAYS[t] || {}, b = $("#hdrSend"), st = $("#hdrSendSt");
+  const t = sel(), x = merged(t), p = DAYS[t] || {}, b = $("#hdrSend"), st = $("#hdrSendSt");
   let s, cls;
   if (x.status === "reviewed" && !x.newSince){ s = "Reviewed ✓"; cls = "done"; }
   else if (x.status === "question"){ s = "Pulse asked"; cls = "ask"; }
@@ -375,7 +388,7 @@ function renderHdrSend(){
   else if (p.submittedAt){ s = "Sent " + new Date(p.submittedAt).toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit"}); cls = "done"; }
   else { s = dayHasContent(t) ? "Not sent" : "Nothing yet"; cls = ""; }
   st.textContent = s; b.className = "sendPill " + cls;
-  b.setAttribute("aria-label", "Send today to Pulse. " + s);
+  b.setAttribute("aria-label", "Send " + (t === today() ? "today" : shortD(t)) + " to Pulse. " + s);
 }
 async function viaWebhook(d, btn){
   if (!S.webhookUrl || !S.senderKey){ toast("Paste Pulse's webhook URL and sender key in Settings first"); openSettings(); return; }
@@ -429,8 +442,8 @@ async function shareDay(d){
   catch(e){ if (e.name === "NotAllowedError") toast("Tap Share again"); else if (e.name !== "AbortError") toast("Share failed: " + e.message); }
 }
 $("#shareBtn").onclick = () => shareDay(curDay);
-$("#failShare").onclick = () => shareDay(failDay || curDay || today());
-$("#failShortcut").onclick = () => { $("#failSheet").hidden = true; viaShortcut(failDay || curDay || today()); };
+$("#failShare").onclick = () => shareDay(failDay || curDay || sel());
+$("#failShortcut").onclick = () => { $("#failSheet").hidden = true; viaShortcut(failDay || curDay || sel()); };
 $("#failClose").onclick = () => $("#failSheet").hidden = true;
 
 /* ---------- Pulse data (data/log.json) ---------- */
@@ -477,7 +490,7 @@ let toastT = null;
 function toast(m){ const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
 document.addEventListener("click", e => {
   const w = e.target.closest("[data-day]"); if (w){ openDay(w.dataset.day); return; }
-  if (e.target.closest("[data-open-today]") || e.target.closest("#openToday") || e.target.closest("#calCard") || e.target.closest("#todayList")) openDay(today());
+  if (e.target.closest("[data-open-today]") || e.target.closest("#openToday") || e.target.closest("#calCard") || e.target.closest("#todayList")) openDay(sel());
 });
 
 (async function init(){
