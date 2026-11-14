@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Fuel · Food & Weight</title>
+<meta name="theme-color" content="#07090c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fuel">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/favicon-32.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="hdr">
+    <div>
+      <div class="eyebrow" id="hdrDate">TODAY</div>
+      <h1>Fuel</h1>
+    </div>
+    <div class="hdrBtns">
+      <span id="syncDot" class="syncdot" title="Pulse data"></span>
+      <button id="settingsBtn" class="iconbtn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4L10.6 6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.2 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="dash">
+    <!-- week strip -->
+    <section class="card week" id="weekCard">
+      <div class="cardHead"><span>This week</span><span class="muted" id="weekAvg"></span></div>
+      <div id="week" class="weekGrid"></div>
+    </section>
+
+    <!-- calories hero -->
+    <section class="card hero" id="calCard">
+      <div class="heroText">
+        <div class="label">Calories today</div>
+        <div class="bignum"><span id="calEaten">—</span><small> kcal</small></div>
+        <div class="muted" id="calLeft">Target 2,200–2,400</div>
+        <div class="pills"><span id="todayBadge" class="badge none">Not sent</span></div>
+      </div>
+      <div class="ringWrap" id="calRing"></div>
+    </section>
+
+    <!-- macros -->
+    <section class="macros" id="macros"></section>
+
+    <!-- weight -->
+    <section class="card" id="weightCard">
+      <div class="cardHead"><span>Weight</span><span class="muted" id="wAsOf"></span></div>
+      <div class="wRow">
+        <div><div class="bignum"><span id="wNow">—</span><small> lb</small></div></div>
+        <div class="wStats">
+          <div><b id="wLost">—</b><span>lost</span></div>
+          <div><b id="wToGo">—</b><span>to go</span></div>
+        </div>
+      </div>
+      <div class="prog"><i id="wProg"></i></div>
+      <div class="progLbl"><span id="wStart">Start 231.4</span><span id="wPct"></span><span id="wGoal">Goal 165</span></div>
+      <div id="wChart" class="chart"></div>
+    </section>
+
+    <!-- body + activity -->
+    <section class="grid2">
+      <div class="card stat" data-open-today><div class="label">BMI</div><div class="num" id="bmi">—</div><div class="muted sm" id="bmiSub"></div></div>
+      <div class="card stat" data-open-today><div class="label">Body fat</div><div class="num" id="bf">—</div><div class="muted sm" id="bfSub"></div></div>
+      <div class="card stat" data-open-today><div class="label">Muscle</div><div class="num" id="mu">—</div><div class="muted sm" id="muSub"></div></div>
+      <div class="card stat act" data-open-today><div class="label">Steps today</div><div class="num" id="steps">—</div><div class="muted sm" id="actCal">— active kcal</div></div>
+    </section>
+
+    <!-- today log -->
+    <section class="card" id="todayCard">
+      <div class="cardHead"><span>Today's food</span><button class="linkbtn" id="openToday">Open day ›</button></div>
+      <div id="todayList" class="foodList"></div>
+    </section>
+    <div class="foot muted sm" id="foot"></div>
+  </main>
+
+  <!-- day view -->
+  <section id="day" class="screen" hidden>
+    <header class="dayHdr">
+      <button class="iconbtn" id="dayBack" aria-label="Back">‹</button>
+      <button class="iconbtn sm" id="dayPrev" aria-label="Previous day">◀</button>
+      <div class="dayTitle"><div id="dayName">Today</div><div class="muted sm" id="dayDate"></div></div>
+      <button class="iconbtn sm" id="dayNext" aria-label="Next day">▶</button>
+      <span id="dayBadge" class="badge none">Not sent</span>
+    </header>
+    <div class="dayBody">
+      <section class="card" id="dayTotals"></section>
+      <div id="pulseNote" class="pulseNote" hidden></div>
+      <section class="card">
+        <div class="cardHead"><span>Photos</span><button class="linkbtn" id="dayAdd">+ Add</button></div>
+        <div id="photoGrid" class="photoGrid"></div>
+        <div id="otherEntries" class="foodList"></div>
+      </section>
+      <section class="card">
+        <div class="cardHead"><span>Notes for Pulse</span><span class="muted sm" id="noteSaved"></span></div>
+        <textarea id="notes" rows="4" placeholder="Context for Pulse: “ate half”, “2 rolls”, “sauce on the side”…"></textarea>
+      </section>
+      <section class="card">
+        <div class="cardHead"><span>Body &amp; activity</span><span class="muted sm" id="manSaved"></span></div>
+        <div class="manGrid">
+          <label>Weight<span>lb</span><input id="m_weight" inputmode="decimal" type="text" autocomplete="off"></label>
+          <label>BMI<span id="bmiHint"></span><input id="m_bmi" inputmode="decimal" type="text" autocomplete="off"></label>
+          <label>Body fat<span>%</span><input id="m_bodyFat" inputmode="decimal" type="text" autocomplete="off"></label>
+          <label>Muscle<span>%</span><input id="m_muscle" inputmode="decimal" type="text" autocomplete="off"></label>
+          <label>Steps<span></span><input id="m_steps" inputmode="numeric" type="text" autocomplete="off"></label>
+          <label>Active cal<span>kcal</span><input id="m_activeCal" inputmode="numeric" type="text" autocomplete="off"></label>
+        </div>
+        <div class="muted sm hint">From your BIA scale and Apple Fitness. Grey numbers are Pulse's; what you type wins.</div>
+      </section>
+      <div class="actions">
+        <button id="submitBtn" class="primary">Submit day to Pulse</button>
+        <button id="shareBtn" class="secondary">Share day…</button>
+        <div id="sendStatus" class="muted sm center"></div>
+      </div>
+    </div>
+  </section>
+
+  <button id="fab" class="fab" aria-label="Add food photo"><svg viewBox="0 0 24 24" width="34" height="34"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
+  <input id="camIn" type="file" accept="image/*" capture="environment" hidden>
+  <input id="libIn" type="file" accept="image/*" multiple hidden>
+
+  <!-- add sheet -->
+  <div id="addSheet" class="sheet" hidden>
+    <div class="sheetBox">
+      <div class="sheetTitle" id="addTitle">Add to today</div>
+      <button class="sheetBtn" id="takePhoto">📷&nbsp; Take photo</button>
+      <button class="sheetBtn" id="pickPhoto">🖼️&nbsp; Choose from library</button>
+      <button class="sheetBtn cancel" id="addCancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- send failed dialog -->
+  <div id="failSheet" class="sheet" hidden>
+    <div class="sheetBox">
+      <div class="sheetTitle">Couldn't reach Pulse directly</div>
+      <p class="muted" id="failMsg"></p>
+      <button class="sheetBtn" id="failShare">Share day instead…</button>
+      <button class="sheetBtn" id="failShortcut">Send with iOS Shortcut</button>
+      <button class="sheetBtn cancel" id="failClose">Close</button>
+    </div>
+  </div>
+
+  <!-- photo viewer -->
+  <div id="viewer" class="viewer" hidden><img id="viewImg" alt=""><button class="iconbtn close" id="viewClose">✕</button></div>
+
+  <!-- settings -->
+  <div id="setSheet" class="sheet full" hidden>
+    <div class="sheetBox tall">
+      <div class="setHead"><span class="sheetTitle">Settings</span><button class="iconbtn" id="setClose">✕</button></div>
+      <div class="setBody">
+        <h3>Send to Pulse</h3>
+        <label class="fld">Webhook URL<input id="s_webhookUrl" type="url" placeholder="https://…" autocomplete="off" autocapitalize="off"></label>
+        <label class="fld">Sender key<div class="keyRow"><input id="s_senderKey" type="password" placeholder="paste the key from Pulse's routine" autocomplete="off" autocapitalize="off"><button class="mini" id="showKey">Show</button></div></label>
+        <div class="row2">
+          <label class="fld">Auth header<input id="s_authHeader" type="text" autocapitalize="off"></label>
+          <label class="fld">Key prefix<input id="s_authScheme" type="text" autocapitalize="off"></label>
+        </div>
+        <label class="fld">Submit sends by
+          <select id="s_sendMode">
+            <option value="direct">Webhook directly from the app</option>
+            <option value="shortcut">iOS Shortcut (copies the day, runs shortcut)</option>
+            <option value="share">Share sheet only</option>
+          </select></label>
+        <label class="fld">Shortcut name<input id="s_shortcutName" type="text"></label>
+        <div class="muted sm">Stored only on this phone. Defaults send <code>Authorization: Bearer &lt;key&gt;</code>.</div>
+
+        <h3>Body &amp; goal</h3>
+        <div class="row2">
+          <label class="fld">Height ft<input id="s_heightFt" inputmode="numeric" type="text"></label>
+          <label class="fld">Height in<input id="s_heightIn" inputmode="decimal" type="text"></label>
+        </div>
+        <div class="row2">
+          <label class="fld">Start weight<input id="s_startWeight" inputmode="decimal" type="text"></label>
+          <label class="fld">Start date<input id="s_startDate" type="date"></label>
+        </div>
+        <label class="fld">Goal weight (lb)<input id="s_goalWeight" inputmode="decimal" type="text"></label>
+
+        <h3>Daily targets</h3>
+        <div class="tgtGrid">
+          <span></span><span class="muted sm">min</span><span class="muted sm">max</span>
+          <span>Calories</span><input id="s_cal0" inputmode="numeric"><input id="s_cal1" inputmode="numeric">
+          <span>Protein g</span><input id="s_protein0" inputmode="numeric"><input id="s_protein1" inputmode="numeric">
+          <span>Fat g</span><input id="s_fat0" inputmode="numeric"><input id="s_fat1" inputmode="numeric">
+          <span>Carbs g</span><input id="s_carbs0" inputmode="numeric"><input id="s_carbs1" inputmode="numeric">
+        </div>
+
+        <h3>App</h3>
+        <button class="secondary" id="setRefresh">Refresh</button>
+        <div class="muted sm" id="setStatus"></div>
+        <div class="muted sm" id="setVer"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

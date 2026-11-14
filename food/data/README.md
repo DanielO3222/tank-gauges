@@ -1,0 +1,68 @@
+# food/data/log.json — Pulse's numbers for the Fuel app
+
+Pulse (the health bot) writes this file; the app at `/tank-gauges/food/` fetches it (`log.json?t=<now>`, no-store)
+on open, when it comes back to the foreground, every 2 min, and on Settings → Refresh. Photos, notes and
+Daniel's manual entries stay on his phone (IndexedDB); they are **not** in this file.
+
+Merge rule in the app: for weight / bmi / bodyFat / muscle / steps / activeCal, what Daniel typed on the phone
+wins; Pulse's value fills in when his field is empty. Calories and macros come only from this file.
+
+## Schema (v1)
+```json
+{
+ "schema": 1,
+ "updated": "2026-11-14T19:40:00-07:00",
+ "start": {"date": "2026-11-10", "lb": 231.4},
+ "goal": {"lb": 165},
+ "weights": [{"date": "2026-11-10", "lb": 231.4}, {"date": "2026-11-14", "lb": 229.8}],
+ "days": {
+  "2026-11-14": {
+   "status": "reviewed",
+   "entries": [
+    {"photoId": "2026-11-14-121503-ab12", "food": "Chicken burrito bowl", "calories": 720,
+     "protein": 48, "fat": 24, "carbs": 78, "note": "ate half the rice"},
+    {"food": "2 dinner rolls", "calories": 240, "protein": 7, "fat": 4, "carbs": 44}
+   ],
+   "totals": {"calories": 960, "protein": 55, "fat": 28, "carbs": 122},
+   "steps": 8421, "activeCal": 512,
+   "weight": 229.8, "bmi": 33.1, "bodyFat": 31.2, "muscle": 33.5,
+   "pulseNote": "Protein is low today; aim for a shake tonight.",
+   "reviewedAt": "2026-11-14T19:40:00-07:00"
+  }
+ }
+}
+```
+- Dates are `YYYY-MM-DD` in America/Denver.
+- `status`: `reviewed` (green badge), `needs-info` (red "Pulse has a question"), `in-review` / `submitted`
+  (amber "Submitted"). No status + nothing sent from the phone = "Not sent".
+- `entries[].photoId` matches the photo `id` in the Submit payload (also the `.jpg` file name that
+  `tools/save_submission.py` writes). The app shows that entry under that photo. Entries without a
+  `photoId` (or with an unknown one) are listed as "Other items".
+- `totals` is optional; the app sums `entries` when it's missing. `pulse_update.py` fills it in.
+- All metric fields are optional; use `null` or leave them out when unknown.
+- `weights[]` feeds the weight trend chart (along with any `days[].weight` and phone entries).
+
+## Tools (stdlib Python)
+```bash
+# 1) Save a Submit payload (webhook body) so the photos can be viewed:
+python3 /workspace/tank-gauges/app/food/tools/save_submission.py payload.json      # or: ... - < payload.json
+#    -> /workspace/food-tracker/submissions/<date>/<photoId>.jpg + submission.json
+
+# 2) Write the reviewed day and push it live:
+python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --json day.json
+python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --set steps=8421 weight=229.8
+python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --status needs-info --note "Milk or water in the shake?"
+python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --show 2026-11-14
+```
+`pulse_update.py` pulls, edits this file, commits only this file, and pushes to `main`
+(GitHub Pages is live about a minute later). `--no-push` / `--no-git` for dry runs.
+
+## Submit payload (phone → Pulse's routine webhook)
+```json
+{"app":"food-tracker","version":"fd-v1.0","date":"2026-11-14","tz":"America/Denver",
+ "sentAt":"2026-11-14T19:02:11-07:00","notes":"ate half the rice, 2 rolls",
+ "manual":{"weight":229.8,"bmi":null,"bodyFat":31.2,"muscle":33.5,"steps":8421,"activeCal":512},
+ "heightIn":70,
+ "photos":[{"id":"2026-11-14-121503-ab12","takenAt":"2026-11-14T12:15:03-07:00","mime":"image/jpeg","base64":"/9j/..."}]}
+```
+Photos are ~640 px JPEGs; the app shrinks them further if the day would exceed ~1.3 MB of base64.

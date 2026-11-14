@@ -1,0 +1,145 @@
+"""Fuel headless test at iPhone size (390x844): dashboard, add photo, notes, manual entry, week view, settings,
+Submit via a local mock webhook (CORS ok + CORS blocked), save_submission.py, pulse_update.py (--no-git), merge.
+Screenshots -> /workspace/food-tracker/screenshots (not committed). Leaves food/data/log.json as the seed."""
+import json, os, subprocess, sys, threading, time, http.server, socketserver
+from playwright.sync_api import sync_playwright
+APP = "/workspace/tank-gauges/app"; FOOD = APP + "/food"; OUT = "/workspace/food-tracker"; SS = OUT + "/screenshots"
+LOG = FOOD + "/data/log.json"; SEED = open(LOG).read()
+PORT, MOCK = 8771, 8772
+ok, bad = [], []
+def check(c, m): (ok if c else bad).append(m); print(("PASS " if c else "FAIL ") + m, flush=True)
+
+got = {}
+class Mock(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def cors(self):
+        if self.path.startswith("/ok"):
+            self.send_header("Access-Control-Allow-Origin", "*"); self.send_header("Access-Control-Allow-Headers", "authorization,content-type")
+            self.send_header("Access-Control-Allow-Methods", "POST")
+    def do_OPTIONS(self): self.send_response(204); self.cors(); self.end_headers()
+    def do_POST(self):
+        n = int(self.headers.get("Content-Length", 0)); body = self.rfile.read(n)
+        got[self.path] = {"auth": self.headers.get("Authorization"), "ctype": self.headers.get("Content-Type"), "body": body}
+        self.send_response(200); self.cors(); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(b'{"success":true}')
+socketserver.TCPServer.allow_reuse_address = True
+ms = socketserver.ThreadingTCPServer(("127.0.0.1", MOCK), Mock); threading.Thread(target=ms.serve_forever, daemon=True).start()
+srv = subprocess.Popen([sys.executable, "-m", "http.server", str(PORT), "--bind", "127.0.0.1"], cwd=APP, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+time.sleep(1)
+URL = f"http://127.0.0.1:{PORT}/food/"
+today = subprocess.run(["bash", "-c", "TZ=America/Denver date +%F"], capture_output=True, text=True).stdout.strip()
+try:
+  with sync_playwright() as p:
+    b = p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox"])
+    ctx = b.new_context(viewport={"width":390,"height":844}, device_scale_factor=3, is_mobile=True, has_touch=True,
+        user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1")
+    ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=f"http://127.0.0.1:{PORT}")
+    pg = ctx.new_page(); errs = []
+    pg.on("pageerror", lambda e: errs.append(str(e))); pg.on("console", lambda m: m.type == "error" and errs.append(m.text))
+    pg.goto(URL); pg.wait_for_selector(".wd"); pg.wait_for_timeout(600)
+    check(pg.inner_text("#wNow") == "231.4", "dashboard weight shows start 231.4: " + pg.inner_text("#wNow"))
+    check(pg.inner_text("#wToGo") == "66.4", "to go 66.4: " + pg.inner_text("#wToGo"))
+    check(len(pg.query_selector_all(".wd")) == 7, "week view has 7 days")
+    check(pg.get_attribute(".wd.today", "data-day") == today, f"week strip ends today {today}")
+    check("2,200–2,400" in pg.inner_text("#calLeft"), "calorie target band shown")
+    check(len(pg.query_selector_all(".macro")) == 3 and "160–180" in pg.inner_text("#macros"), "3 macro rings, protein 160–180")
+    # add photo via + -> Take photo (camera input)
+    pg.click("#fab"); check(pg.is_visible("#addSheet"), "+ opens add sheet")
+    check(pg.get_attribute("#camIn", "capture") == "environment" and pg.get_attribute("#camIn", "accept") == "image/*", "camera input accept=image/* capture")
+    check(pg.get_attribute("#libIn", "multiple") is not None, "library input allows multiple")
+    with pg.expect_file_chooser() as fc: pg.click("#takePhoto")
+    fc.value.set_files(OUT + "/test-meal.jpg"); pg.wait_for_selector("#todayList .food img"); pg.wait_for_timeout(400)
+    check(len(pg.query_selector_all("#todayList .food")) == 1, "photo saved under today")
+    dims = pg.evaluate("""async()=>{const db=await new Promise(r=>{const q=indexedDB.open('fuel-db');q.onsuccess=()=>r(q.result)});
+      const all=await new Promise(r=>{const q=db.transaction('photos').objectStore('photos').getAll();q.onsuccess=()=>r(q.result)});
+      const dim=async b=>{const i=await createImageBitmap(b);return [i.width,i.height,b.size]};
+      return Promise.all(all.map(async p=>({id:p.id,date:p.date,full:await dim(p.full),small:await dim(p.small)})))}""")
+    d0 = dims[0]; check(d0["date"] == today and max(d0["full"][:2]) == 1024 and max(d0["small"][:2]) == 640, f"stored 1024 + 640 JPEGs {d0}")
+    pid1 = d0["id"]
+    # day view
+    pg.click("#openToday"); pg.wait_for_selector("#day:not([hidden])")
+    with pg.expect_file_chooser() as fc: pg.click("#dayAdd"); pg.click("#pickPhoto")
+    fc.value.set_files(OUT + "/test-meal2.jpg"); pg.wait_for_function("document.querySelectorAll('#photoGrid .pcard').length==2")
+    check(True, "second photo via library into the open day (2 photos)")
+    pg.fill("#notes", "ate half the rice, 2 rolls"); pg.fill("#m_weight", "229.8"); pg.fill("#m_bodyFat", "31.2")
+    pg.fill("#m_muscle", "33.5"); pg.fill("#m_steps", "8421"); pg.fill("#m_activeCal", "512"); pg.wait_for_timeout(900)
+    check(pg.inner_text("#noteSaved") == "Saved" and pg.inner_text("#manSaved") == "Saved", "notes + manual autosave")
+    pg.click("#dayBack"); pg.wait_for_timeout(300)
+    check(pg.inner_text("#wNow") == "229.8" and pg.inner_text("#wLost") == "1.6", "dashboard weight 229.8, lost 1.6")
+    check(pg.inner_text("#steps") == "8,421" and "512" in pg.inner_text("#actCal"), "steps + active cal on dashboard")
+    check(pg.inner_text("#bf") == "31.2%" and pg.inner_text("#mu") == "33.5%", "body fat / muscle on dashboard")
+    # settings
+    pg.click("#settingsBtn"); pg.wait_for_selector("#setSheet:not([hidden])")
+    check(pg.input_value("#s_authHeader") == "Authorization" and pg.input_value("#s_authScheme") == "Bearer ", "auth header defaults")
+    check(pg.input_value("#s_fat0") == "65" and pg.input_value("#s_carbs1") == "260", "editable fat/carb targets")
+    pg.fill("#s_heightFt", "5"); pg.fill("#s_heightIn", "10"); pg.dispatch_event("#s_heightIn", "change")
+    pg.fill("#s_webhookUrl", f"http://127.0.0.1:{MOCK}/ok/hook"); pg.fill("#s_senderKey", "test-key-123"); pg.dispatch_event("#s_senderKey", "change")
+    pg.wait_for_timeout(2800); pg.screenshot(path=SS + "/settings.png")
+    pg.click("#setClose"); pg.wait_for_timeout(300)
+    check(pg.inner_text("#bmi") == "33.0", "BMI auto from 5'10\" + 229.8 = 33.0: " + pg.inner_text("#bmi"))
+    # persistence after reload
+    pg.reload(); pg.wait_for_selector("#todayList .food img")
+    check(pg.inner_text("#wNow") == "229.8" and len(pg.query_selector_all("#todayList .food")) == 2, "data persists after reload")
+    # submit OK path
+    pg.click("#openToday"); pg.wait_for_selector("#day:not([hidden])")
+    check(pg.input_value("#notes") == "ate half the rice, 2 rolls", "notes reload")
+    pg.click("#submitBtn"); pg.wait_for_function("document.querySelector('#dayBadge').textContent.includes('Submitted')", timeout=8000)
+    r = got.get("/ok/hook"); check(r and r["auth"] == "Bearer test-key-123" and r["ctype"] == "application/json", f"POST with Authorization: Bearer + JSON ({r and r['auth']})")
+    pl = json.loads(r["body"]); check(pl["app"] == "food-tracker" and pl["date"] == today and len(pl["photos"]) == 2 and pl["notes"].startswith("ate half")
+        and pl["manual"]["weight"] == 229.8 and pl["photos"][0]["mime"] == "image/jpeg", "payload shape ok")
+    check(len(r["body"]) < 1_300_000, f"payload size {len(r['body'])//1024} KB")
+    open(OUT + "/fake-payload.json", "wb").write(r["body"])
+    # CORS-blocked path
+    pg.click("#dayBack"); pg.click("#settingsBtn"); pg.fill("#s_webhookUrl", f"http://127.0.0.1:{MOCK}/blocked/hook"); pg.dispatch_event("#s_webhookUrl", "change"); pg.click("#setClose"); pg.click("#openToday")
+    pg.click("#submitBtn"); pg.wait_for_selector("#failSheet:not([hidden])", timeout=8000)
+    check("blocked" in pg.inner_text("#failMsg"), "CORS-blocked send shows 'nothing was sent' + Share/Shortcut options")
+    pg.click("#failClose")
+    # save_submission + pulse_update (no git) -> app merge
+    s = subprocess.run([sys.executable, FOOD + "/tools/save_submission.py", OUT + "/fake-payload.json"], capture_output=True, text=True); print(s.stdout, s.stderr)
+    sd = f"{OUT}/submissions/{today}"; check(os.path.exists(f"{sd}/{pid1}.jpg") and json.load(open(sd + "/submission.json"))["notes"].startswith("ate half"), "save_submission wrote jpgs + submission.json")
+    wrapped = json.dumps({"webhook_event": {"body": r["body"].decode()}})
+    s = subprocess.run([sys.executable, FOOD + "/tools/save_submission.py", "-", "--out", "/tmp/fuel-sub-test"], input=wrapped, capture_output=True, text=True)
+    check("Saved 2 photo" in s.stdout, "save_submission unwraps a nested/stringified payload from stdin")
+    pid2 = pl["photos"][1]["id"]
+    day = {"entries": [{"photoId": pid1, "food": "Chicken rice plate", "calories": 780, "protein": 52, "fat": 22, "carbs": 90, "note": "half the rice"},
+                       {"photoId": pid2, "food": "Tomato soup", "calories": 260, "protein": 8, "fat": 9, "carbs": 34},
+                       {"food": "2 dinner rolls", "calories": 240, "protein": 7, "fat": 4, "carbs": 44}],
+           "steps": 9000, "weight": 230.1, "pulseNote": "Good protein at lunch; add a shake tonight."}
+    u = subprocess.run([sys.executable, FOOD + "/tools/pulse_update.py", "--date", today, "--json", json.dumps(day), "--no-git"], capture_output=True, text=True)
+    lj = json.load(open(LOG)); dd = lj["days"][today]
+    check(u.returncode == 0 and dd["totals"] == {"calories": 1280, "protein": 67, "fat": 35, "carbs": 168} and dd["status"] == "reviewed", f"pulse_update totals {dd.get('totals')}")
+    check({"date": today, "lb": 230.1} in lj["weights"], "pulse_update adds weight to weights[]")
+    u = subprocess.run([sys.executable, FOOD + "/tools/pulse_update.py", "--date", today, "--set", "activeCal=600", "--no-git"], capture_output=True, text=True)
+    check(json.load(open(LOG))["days"][today]["activeCal"] == 600, "pulse_update --set")
+    # yesterday reviewed, for week bars
+    import datetime
+    y = (datetime.date.fromisoformat(today) - datetime.timedelta(days=1)).isoformat(); y2 = (datetime.date.fromisoformat(today) - datetime.timedelta(days=2)).isoformat()
+    subprocess.run([sys.executable, FOOD + "/tools/pulse_update.py", "--date", y, "--json", json.dumps({"totals": {"calories": 2310, "protein": 171, "fat": 72, "carbs": 215}, "weight": 230.6}), "--no-git"], check=True, capture_output=True)
+    subprocess.run([sys.executable, FOOD + "/tools/pulse_update.py", "--date", y2, "--json", json.dumps({"totals": {"calories": 2650, "protein": 140, "fat": 95, "carbs": 290}}), "--no-git"], check=True, capture_output=True)
+    pg.click("#dayBack"); pg.click("#settingsBtn"); pg.click("#setRefresh"); pg.wait_for_timeout(900); pg.click("#setClose"); pg.click("#openToday")
+    pg.wait_for_function("document.querySelector('#dayBadge').textContent.includes('Reviewed')", timeout=5000)
+    t = pg.inner_text("#photoGrid"); check("Chicken rice plate" in t and "Tomato soup" in t, "day view shows Pulse entries under photos")
+    check("2 dinner rolls" in pg.inner_text("#otherEntries"), "entry without photo under Other items")
+    check(pg.input_value("#m_steps") == "8421", "phone steps (8421) win over Pulse's 9000")
+    check(pg.get_attribute("#m_activeCal", "value") in (None, "512") and pg.input_value("#m_activeCal") == "512", "phone activeCal wins")
+    check("Pulse:" in pg.inner_text("#pulseNote"), "Pulse note shown")
+    pg.wait_for_timeout(2800); pg.screenshot(path=SS + "/day.png", full_page=False)
+    pg.add_style_tag(content=".dayHdr{position:static!important}")
+    pg.evaluate("document.querySelector('#day').style.position='static'; document.querySelector('#dash').style.display='none'; document.querySelector('.hdr').style.display='none'; document.querySelector('#fab').style.display='none'")
+    pg.screenshot(path=SS + "/day-full.png", full_page=True)
+    pg.reload(); pg.wait_for_selector("#todayList .food img"); pg.wait_for_timeout(800)
+    check(pg.inner_text("#calEaten") == "1,280", "dashboard calories 1,280 from Pulse: " + pg.inner_text("#calEaten"))
+    check("Reviewed" in pg.inner_text("#todayBadge"), "dashboard badge Reviewed")
+    check(pg.inner_text("#wNow") == "229.8", "phone weight 229.8 wins over Pulse 230.1 for today")
+    check(len(pg.query_selector_all(".wd .fill")) == 3 and len(pg.query_selector_all(".wd .fill.over")) == 1, "week bars: 3 days, 1 over target")
+    pg.evaluate("window.scrollTo(0,0)"); pg.wait_for_timeout(200); pg.screenshot(path=SS + "/dashboard-screen.png")
+    pg.add_style_tag(content=".fab{display:none!important}")
+    pg.screenshot(path=SS + "/dashboard.png", full_page=True)
+    pg.click(f".wd[data-day='{y}']"); pg.wait_for_selector("#day:not([hidden])")
+    check(pg.inner_text("#dayName") == "Yesterday" and "2,310" in pg.inner_text("#dayTotals"), "tap week day opens that day")
+    sw = pg.evaluate("navigator.serviceWorker.getRegistration().then(r=>r&&r.scope)")
+    check(sw and sw.endswith("/food/"), f"service worker scope {sw}")
+    errs = [e for e in errs if "/blocked/hook" not in e and "Failed to load resource" not in e]; check(not errs, "no console errors (besides the intended CORS block) " + str(errs[:3]))
+    b.close()
+finally:
+    open(LOG, "w").write(SEED); srv.terminate(); ms.shutdown()
+print(f"\n{len(ok)} passed, {len(bad)} failed"); sys.exit(1 if bad else 0)
