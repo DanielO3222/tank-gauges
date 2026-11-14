@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T15:42:31-07:00",
+ "updated": "2026-11-14T15:43:10-07:00",
  "start": {
   "date": "2026-11-10",
   "lb": 231.4
@@ -46,11 +46,16 @@
     "carbs": 114
    },
    "status": "reviewed",
-   "reviewedAt": "2026-11-14T15:42:31-07:00",
+   "reviewedAt": "2026-11-14T15:43:10-07:00",
    "weight": 229,
    "bmi": 33.9,
    "bodyFat": 33,
-   "muscle": 64.4
+   "muscle": 64.4,
+   "activeCal": 529,
+   "exerciseMin": 23,
+   "standHrs": 10,
+   "steps": 9106,
+   "distanceMi": 3.59
   }
  }
 }
