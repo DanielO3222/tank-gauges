@@ -1,69 +1,7 @@
 {
  "schema": 1,
- "updated": "2026-11-14T15:45:51-07:00",
- "start": {
-  "date": "2026-11-10",
-  "lb": 231.4
- },
- "goal": {
-  "lb": 165
- },
- "weights": [
-  {
-   "date": "2026-11-10",
-   "lb": 231.4
-  },
-  {
-   "date": "2026-11-14",
-   "lb": 229
-  }
- ],
- "days": {
-  "2026-11-14": {
-   "entries": [
-    {
-     "photoId": "2026-11-14-152646-im1y",
-     "food": "Seasoned beef (~6 oz), ~1.25 cups white rice, kimchi",
-     "calories": 720,
-     "protein": 50,
-     "fat": 25,
-     "carbs": 70
-    },
-    {
-     "photoId": "2026-11-14-152750-5345",
-     "food": "2 homemade rolls",
-     "calories": 260,
-     "protein": 7,
-     "fat": 6,
-     "carbs": 44
-    },
-    {
-     "food": "Jam on a roll (~1.5 tbsp)",
-     "calories": 75,
-     "protein": 0,
-     "fat": 0,
-     "carbs": 19,
-     "note": "Assumed one of the 2 rolls already logged"
-    }
-   ],
-   "pulseNote": "Solid protein at dinner. You still have about 1,200+ kcal and 100+ g protein of room, so lean protein is the best use of it.",
-   "status": "reviewed",
-   "reviewedAt": "2026-11-14T15:45:51-07:00",
-   "weight": 229,
-   "bmi": 33.9,
-   "bodyFat": 33,
-   "muscle": 64.4,
-   "activeCal": 529,
-   "exerciseMin": 23,
-   "standHrs": 10,
-   "steps": 9106,
-   "distanceMi": 3.59,
-   "totals": {
-    "calories": 1055,
-    "protein": 57,
-    "fat": 31,
-    "carbs": 133
-   }
-  }
- }
+ "moved": true,
+ "note": "Fuel data moved to the private repo DanielO3222/fuel-data (fd-v1.5). This public file stays empty.",
+ "days": {},
+ "weights": []
 }

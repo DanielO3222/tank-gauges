@@ -4,8 +4,8 @@ Live: https://danielo3222.github.io/tank-gauges/food/ — iPhone-first PWA (Add 
 No build step, no dependencies. Service worker version string lives in `sw.js` and `app.js` (`fd-v1.x`); bump both on every update.
 
 - `index.html`, `style.css`, `app.js` — the app. Photos (1024 px + 640 px JPEG), notes, manual entries in IndexedDB `fuel-db`; settings in localStorage `fd-settings`.
-- `data/log.json` — Pulse's reviewed numbers (schema + tool usage in `data/README.md`).
-- `tools/save_submission.py`, `tools/pulse_update.py` — Pulse's helpers.
+- Private data (photos, notes, numbers, Pulse's `log.json`) lives in the private repo `DanielO3222/fuel-data`; the app syncs to it with a fine-grained token (Settings → Sync key). `data/log.json` here is an empty stub. See `data/README.md`.
+- `tools/fuel_day.py`, `tools/pulse_update.py`, `tools/save_submission.py` — Pulse's helpers (default to /workspace/fuel-data).
 - `tests/e2e.py` — headless 390×844 test (screenshots go to /workspace/food-tracker/screenshots, not committed).
 
 ## Submit → Pulse

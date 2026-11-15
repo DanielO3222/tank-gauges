@@ -1,6 +1,27 @@
-# food/data/log.json — Pulse's numbers for the Fuel app
+# Fuel data — where it lives (since fd-v1.5)
 
-Pulse (the health bot) writes this file; the app at `/tank-gauges/food/` fetches it (`log.json?t=<now>`, no-store)
+**Everything personal is in the PRIVATE repo `DanielO3222/fuel-data`** (box clone: `/workspace/fuel-data`).
+This public `food/data/log.json` is only an empty stub (`"moved": true`); don't write to it.
+
+Private repo layout:
+- `days/<YYYY-MM-DD>.json` — written by the app automatically (debounced, on every change) when Daniel's
+  phone has a Sync key: `{schema, app, version, date, updatedAt, notes, manual:{weight,bmi,bodyFat,muscle,steps,
+  activeCal,exerciseMin,distanceMi,standHrs}, heightIn, submittedAt, submittedVia, photos:[{id,takenAt,path}]}`.
+  `manual` values are what Daniel typed (null = empty).
+- `photos/<YYYY-MM-DD>/<photoId>.jpg` — written by the app (~1024 px JPEG). Deleted photos are removed.
+- `log.json` — written by Pulse with `pulse_update.py` (schema below). The app reads it with the Sync key.
+
+Pulse tools (stdlib):
+```bash
+python3 /workspace/tank-gauges/app/food/tools/fuel_day.py            # git pull + show today: notes, numbers, photo paths, review state
+python3 /workspace/tank-gauges/app/food/tools/fuel_day.py 2026-11-14 # a given day
+python3 /workspace/tank-gauges/app/food/tools/fuel_day.py --recent 7 # recent days with app data
+python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --json day.json   # write review -> private log.json, commit, push
+```
+
+# log.json schema (private repo) — Pulse's numbers for the Fuel app
+
+Pulse (the health bot) writes this file; the app fetches it from the private repo with the Sync key (GitHub API, no-store)
 on open, when it comes back to the foreground, every 2 min, and on Settings → Refresh. Photos, notes and
 Daniel's manual entries stay on his phone (IndexedDB); they are **not** in this file.
 
@@ -48,7 +69,8 @@ wins; Pulse's value fills in when his field is empty. Calories and macros come o
 
 ## Tools (stdlib Python)
 ```bash
-# 1) Save a Submit payload (webhook body) so the photos can be viewed:
+# 0) Usually not needed any more: photos/notes are already in /workspace/fuel-data after fuel_day.py pulls.
+# 1) Save a Submit payload (webhook body / Shortcut post) so the photos can be viewed:
 python3 /workspace/tank-gauges/app/food/tools/save_submission.py payload.json      # or: ... - < payload.json
 #    -> /workspace/food-tracker/submissions/<date>/<photoId>.jpg + submission.json
 
@@ -59,8 +81,8 @@ python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 
 python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --date 2026-11-14 --status needs-info --note "Milk or water in the shake?"
 python3 /workspace/tank-gauges/app/food/tools/pulse_update.py --show 2026-11-14
 ```
-`pulse_update.py` pulls, edits this file, commits only this file, and pushes to `main`
-(GitHub Pages is live about a minute later). `--no-push` / `--no-git` for dry runs.
+`pulse_update.py` pulls /workspace/fuel-data, edits log.json, commits only that file, and pushes to `main`
+(the app picks it up on its next refresh). `--no-push` / `--no-git` for dry runs.
 
 ## Submit payload (phone → Pulse's routine webhook)
 ```json

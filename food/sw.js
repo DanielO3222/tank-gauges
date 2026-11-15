@@ -1,5 +1,5 @@
 /* Fuel (food & weight) service worker, scope /food/. App shell cache-first; data/log.json network-first. */
-const VERSION = "fd-v1.4";
+const VERSION = "fd-v1.5";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon-32.png"];
 self.addEventListener("install", e => {

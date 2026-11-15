@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Pulse -> Fuel app: write a day's reviewed numbers into food/data/log.json, then commit + push.
+"""Pulse -> Fuel app: write a day's reviewed numbers into log.json in the private repo
+(/workspace/fuel-data, DanielO3222/fuel-data), then commit + push. The app reads it with Daniel's Sync key.
 
 Examples (run from anywhere):
   # whole day from a JSON file or inline JSON (keys as in food/data/README.md)
@@ -20,9 +21,13 @@ unless --status is given. Standard library only.
 """
 import argparse, json, os, subprocess, sys, time
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-LOG = os.path.normpath(os.path.join(HERE, "..", "data", "log.json"))
-REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
+# Since fd-v1.5 Pulse's data lives in the PRIVATE repo DanielO3222/fuel-data, cloned at /workspace/fuel-data.
+# Override with --log PATH or env FUEL_LOG (the repo is the git checkout that contains that file).
+DATA_DIR = os.environ.get("FUEL_DATA_DIR", "/workspace/fuel-data")
+LOG = os.environ.get("FUEL_LOG") or os.path.join(DATA_DIR, "log.json")
+if "--log" in sys.argv: LOG = sys.argv[sys.argv.index("--log") + 1]
+LOG = os.path.abspath(LOG)
+REPO = subprocess.run(["git", "-C", os.path.dirname(LOG), "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip() or os.path.dirname(LOG)
 REL = os.path.relpath(LOG, REPO)
 NUM = ["weight", "bmi", "bodyFat", "muscle", "steps", "activeCal", "exerciseMin", "distanceMi", "standHrs"]
 
@@ -61,7 +66,7 @@ def main():
     ap.add_argument("--set", nargs="+", default=[]); ap.add_argument("--note"); ap.add_argument("--status")
     ap.add_argument("--weight", nargs=2, metavar=("DATE", "LB")); ap.add_argument("--show"); ap.add_argument("--clear-day")
     ap.add_argument("--no-push", action="store_true"); ap.add_argument("--no-git", action="store_true")
-    ap.add_argument("-m", "--message")
+    ap.add_argument("-m", "--message"); ap.add_argument("--log", help="log.json path (default /workspace/fuel-data/log.json)")
     a = ap.parse_args()
     if a.show:
         d = load(); print(json.dumps(d["days"].get(a.show, {}), indent=1)); return 0
@@ -102,7 +107,7 @@ def main():
     if a.no_push: print("Committed (not pushed)."); return 0
     if git("push", "-q", "origin", "HEAD:main", check=False).returncode:
         git("pull", "--rebase", "--autostash", "-q"); git("push", "-q", "origin", "HEAD:main")
-    print("Pushed. The app shows it after GitHub Pages rebuilds (~1 min) and the app refreshes.")
+    print("Pushed to " + REPO + ". The app shows it on its next refresh (open, foreground, every 2 min, or Settings > Refresh).")
     return 0
 
 if __name__ == "__main__":

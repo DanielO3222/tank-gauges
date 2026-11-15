@@ -5,6 +5,8 @@ import json, os, subprocess, sys, threading, time, http.server, socketserver
 from playwright.sync_api import sync_playwright
 APP = "/workspace/tank-gauges/app"; FOOD = APP + "/food"; OUT = "/workspace/food-tracker"; SS = OUT + "/screenshots"
 LOG = FOOD + "/data/log.json"; SEED = open(LOG).read()
+os.environ["FUEL_LOG"] = LOG   # tools write the local test copy, not the private repo
+open(LOG, "w").write(json.dumps({"schema": 1, "start": {"date": "2026-11-10", "lb": 231.4}, "goal": {"lb": 165}, "weights": [{"date": "2026-11-10", "lb": 231.4}], "days": {}}))
 PORT, MOCK = 8771, 8772
 ok, bad = [], []
 def check(c, m): (ok if c else bad).append(m); print(("PASS " if c else "FAIL ") + m, flush=True)

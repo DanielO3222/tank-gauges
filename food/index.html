@@ -169,7 +169,13 @@
     <div class="sheetBox tall">
       <div class="setHead"><span class="sheetTitle">Settings</span><button class="iconbtn" id="setClose">✕</button></div>
       <div class="setBody">
-        <h3>Send to Pulse</h3>
+        <h3>Sync with Pulse (private)</h3>
+        <label class="fld">Sync key<div class="keyRow"><input id="s_syncKey" type="password" placeholder="github_pat_… (fine-grained token)" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="mini" id="showSync">Show</button></div></label>
+        <label class="fld">Private repo<input id="s_syncRepo" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+        <div class="syncRow"><span id="syncStatus" class="muted sm">Sync off</span><button class="mini" id="syncNow">Sync all now</button></div>
+        <div class="muted sm">With a key, every photo, note and number saves to your private repo automatically so Pulse can see it anytime. The key stays only on this phone.</div>
+
+        <h3>Send to Pulse (optional ping)</h3>
         <label class="fld">Webhook URL<input id="s_webhookUrl" type="url" placeholder="https://…" autocomplete="off" autocapitalize="off"></label>
         <label class="fld">Sender key<div class="keyRow"><input id="s_senderKey" type="password" placeholder="paste the key from Pulse's routine" autocomplete="off" autocapitalize="off"><button class="mini" id="showKey">Show</button></div></label>
         <div class="row2">

@@ -271,3 +271,8 @@ textarea{min-height:72px;padding:10px}
 .wd.sel{background:#2c2c2e;box-shadow:inset 0 0 0 1.5px var(--carb)}
 #actN{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .actHead .label{white-space:nowrap}
+
+/* fd-v1.5 sync */
+.syncRow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 0 8px}
+.syncdot.busy{background:var(--carb);box-shadow:0 0 8px var(--carb)}
+.syncdot.err{background:var(--bad);box-shadow:0 0 8px var(--bad)}

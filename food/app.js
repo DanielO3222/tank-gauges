@@ -1,16 +1,20 @@
 /* Fuel — food & weight tracker. Photos/notes/manual entries live on the phone (IndexedDB + localStorage).
    Pulse (health bot) reviews submitted days and writes its numbers to data/log.json, which this app merges in. */
 "use strict";
-const APP_VERSION = "fd-v1.4";
+const APP_VERSION = "fd-v1.5";
 const TZ = "America/Denver";
 const K_SET = "fd-settings", K_LOG = "fd-log";
 const $ = s => document.querySelector(s);
 const DEF = { webhookUrl:"", senderKey:"", authHeader:"Authorization", authScheme:"Bearer ", sendMode:"share", shortcutName:"Send to Pulse",
-  heightIn:null, startWeight:231.4, startDate:"2026-11-10", goalWeight:165,
+  heightIn:null, startWeight:null, startDate:null, goalWeight:null, syncKey:"", syncRepo:"DanielO3222/fuel-data",
   cal:[2200,2400], protein:[160,180], fat:[65,80], carbs:[200,260] };
 let S = Object.assign({}, DEF, loadJSON(K_SET) || {});
 if (S.sendMode === "direct" && !S.webhookUrl) S.sendMode = "share";   // v1.0 default -> v1.1 default
 const K_ACT = "fd-act-range";
+// start/goal: Settings value if typed, else what Pulse keeps in log.json (keeps personal numbers out of the public code)
+const startW = () => isNum(S.startWeight) ? +S.startWeight : (LOG.start && isNum(LOG.start.lb) ? +LOG.start.lb : null);
+const startD = () => S.startDate || (LOG.start && LOG.start.date) || null;
+const goalW = () => isNum(S.goalWeight) ? +S.goalWeight : (LOG.goal && isNum(LOG.goal.lb) ? +LOG.goal.lb : null);
 let LOG = (loadJSON(K_LOG) || {}).log || { days:{}, weights:[] }, logAt = (loadJSON(K_LOG) || {}).at || null, online = null;
 let DAYS = {}, PHOTOS = [];           // phone data: DAYS[date] = {date, notes, manual:{}, submittedAt, submittedVia, submittedIds}
 let curDay = null;                     // date open in day view
@@ -60,7 +64,7 @@ async function loadPhone(){
   PHOTOS.sort((a,b) => (a.takenAt||"").localeCompare(b.takenAt||""));
 }
 function phoneDay(date){ return DAYS[date] || (DAYS[date] = {date, notes:"", manual:{}}); }
-async function savePhoneDay(date){ await idbPut("days", phoneDay(date)); }
+async function savePhoneDay(date){ const p = phoneDay(date); p.updatedAt = nowLocalISO(); await idbPut("days", p); syncQ({t:"day", date}); }
 const photosOn = date => PHOTOS.filter(p => p.date === date);
 async function photoURL(id, which="small"){
   const key = id + ":" + which; if (urlCache.has(key)) return urlCache.get(key);
@@ -85,7 +89,7 @@ async function addFiles(files, date){
       const takenAt = nowLocalISO();
       const id = date + "-" + takenAt.slice(11,19).replace(/:/g,"") + "-" + Math.random().toString(36).slice(2,6);
       await idbPut("photos", {id, date, takenAt, full, small});
-      PHOTOS.push({id, date, takenAt}); n++;
+      PHOTOS.push({id, date, takenAt}); n++; syncQ({t:"photo", id, date}); syncQ({t:"day", date});
     }catch(e){ toast(e.message || "Couldn't add that photo"); }
   }
   if (n){ toast(n === 1 ? "Photo saved to " + dayLabel(date) : n + " photos saved to " + dayLabel(date)); render(); }
@@ -115,7 +119,7 @@ function merged(date){
 }
 const STATUS_TXT = {none:"Not sent", submitted:"Submitted", reviewed:"Reviewed", question:"Pulse has a question"};
 function weightSeries(){
-  const w = {}; if (isNum(S.startWeight) && S.startDate) w[S.startDate] = +S.startWeight;
+  const w = {}; if (isNum(startW()) && startD()) w[startD()] = startW();
   (LOG.weights || []).forEach(x => { if (isNum(x.lb)) w[x.date] = +x.lb; });
   Object.entries(LOG.days || {}).forEach(([d, x]) => { if (isNum(x.weight)) w[d] = +x.weight; });
   Object.values(DAYS).forEach(x => { if (x.manual && isNum(x.manual.weight)) w[x.date] = +x.manual.weight; });
@@ -180,7 +184,7 @@ function renderHero(){
 }
 
 function renderWeight(){
-  const sd = sel(), ws = weightSeries().filter(w => w.date <= sd), cur = ws.length ? ws[ws.length-1] : null, start = +S.startWeight, goal = +S.goalWeight;
+  const sd = sel(), ws = weightSeries().filter(w => w.date <= sd), cur = ws.length ? ws[ws.length-1] : null, start = startW(), goal = goalW();
   $("#wNow").textContent = cur ? fmt(cur.lb, 1) : "—";
   $("#wAsOf").textContent = cur ? (cur.date === today() ? "today" : cur.date === sd ? shortD(sd) : fmtD(cur.date, {month:"short", day:"numeric"})) : "";
   const lost = cur ? start - cur.lb : 0, togo = cur ? cur.lb - goal : start - goal;
@@ -189,7 +193,7 @@ function renderWeight(){
   const pct = Math.max(0, Math.min(1, lost / (start - goal)));
   $("#wProg").style.width = (pct * 100).toFixed(1) + "%";
   $("#wPct").textContent = Math.round(pct * 100) + "% there";
-  $("#wStart").textContent = "Start " + fmt(start, 1) + " · " + fmtD(S.startDate, {month:"short", day:"numeric"});
+  $("#wStart").textContent = "Start " + fmt(start, 1) + (startD() ? " · " + fmtD(startD(), {month:"short", day:"numeric"}) : "");
   $("#wGoal").textContent = "Goal " + fmt(goal, 0);
   // chart: scale weight dots + smoothed trend (EMA), last 60 days
   const W = 340, H = 92, P = {l:30, r:8, t:6, b:16};
@@ -263,8 +267,7 @@ function render(){
   $("#hdrNext").disabled = isT;
   renderWeek(); renderHero(); renderActivity(); renderWeight(); renderStats(); renderToday(); renderHdrSend();
   clearTimeout(prepT); prepT = setTimeout(() => prepShare(sel()), 150);   // share sheet needs files ready at tap time
-  $("#syncDot").className = "syncdot " + (online === true ? "ok" : online === false ? "off" : "");
-  $("#foot").textContent = APP_VERSION + (logAt ? " · Pulse data " + new Date(logAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}) : "");
+  paintSync();
   if (curDay) renderDay();
 }
 
@@ -304,10 +307,11 @@ async function renderDay(){
   const extra = x.entries.filter(e => !e.photoId || !ids.has(e.photoId));
   $("#otherEntries").innerHTML = extra.length ? '<div class="label">Other items</div>' + extra.map(e => `<div class="food"><div class="ph">🍽️</div><div><div class="fn">${esc(e.food || "Food")}</div><div class="fm">P ${fmt(e.protein)} · F ${fmt(e.fat)} · C ${fmt(e.carbs)}${e.note ? " · " + esc(e.note) : ""}</div></div><div class="kc">${fmt(e.calories)}</div></div>`).join("") : "";
   const p = DAYS[d] || {};
-  $("#submitBtn").textContent = p.submittedAt ? (x.newSince ? `Send to Pulse again (${x.newSince} new)` : "Send to Pulse again") : "Send to Pulse";
+  const verb = syncOn() ? "Ping Pulse" : "Send to Pulse";
+  $("#submitBtn").textContent = p.submittedAt ? (x.newSince ? `${verb} again (${x.newSince} new)` : `${verb} again`) : verb;
   const mode = sendMode();
   $("#sendHow").textContent = mode === "shortcut" ? `Runs your “${S.shortcutName || "Send to Pulse"}” Shortcut, which posts the day to Pulse.`
-    : mode === "direct" ? "Posts the day to Pulse's webhook." : "Opens the share sheet. Pick Pulse's chat to send the photos and notes.";
+    : mode === "direct" ? "Posts the day to Pulse's webhook." : syncOn() ? "Already synced to your private repo. This just tells Pulse to review now: pick Pulse's chat in the share sheet." : "Opens the share sheet. Pick Pulse's chat to send the photos and notes.";
   $("#shareBtn").hidden = mode === "share";
   $("#sendStatus").textContent = p.submittedAt ? `Sent ${new Date(p.submittedAt).toLocaleString("en-US",{timeZone:TZ,month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} via ${({direct:"webhook ✓",shortcut:"Shortcut",share:"share sheet"})[p.submittedVia] || p.submittedVia}` : "";
 }
@@ -326,7 +330,7 @@ $("#dayNext").onclick = () => { if (curDay < today()) openDay(addDays(curDay, 1)
 $("#dayAdd").onclick = () => openAdd();
 $("#photoGrid").addEventListener("click", async e => {
   const del = e.target.closest("[data-del]"), v = e.target.closest("[data-view]");
-  if (del){ if (!confirm("Delete this photo?")) return; await idbDel("photos", del.dataset.del); PHOTOS = PHOTOS.filter(p => p.id !== del.dataset.del); renderDay(); prepShare(curDay); return; }
+  if (del){ if (!confirm("Delete this photo?")) return; await idbDel("photos", del.dataset.del); PHOTOS = PHOTOS.filter(p => p.id !== del.dataset.del); syncQ({t:"delphoto", id:del.dataset.del, date:curDay}); syncQ({t:"day", date:curDay}); renderDay(); prepShare(curDay); return; }
   if (v){ $("#viewImg").src = await photoURL(v.dataset.view, "full"); $("#viewer").hidden = false; }
 });
 $("#viewClose").onclick = () => $("#viewer").hidden = true; $("#viewer").onclick = e => { if (e.target.id === "viewer") $("#viewer").hidden = true; };
@@ -387,7 +391,7 @@ function renderHdrSend(){
   else if (p.submittedAt && x.newSince){ s = x.newSince + " new since send"; cls = ""; }
   else if (p.submittedAt){ s = "Sent " + new Date(p.submittedAt).toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit"}); cls = "done"; }
   else { s = dayHasContent(t) ? "Not sent" : "Nothing yet"; cls = ""; }
-  st.textContent = s; b.className = "sendPill " + cls;
+  st.textContent = s; b.className = "sendPill " + cls; b.querySelector("b").textContent = syncOn() ? "Ping Pulse" : "Send to Pulse";
   b.setAttribute("aria-label", "Send " + (t === today() ? "today" : shortD(t)) + " to Pulse. " + s);
 }
 async function viaWebhook(d, btn){
@@ -425,6 +429,7 @@ function viaShortcut(d){
 const shareCache = {};
 async function shareParts(d){
   const x = merged(d), p = phoneDay(d), files = [];
+  if (syncOn()) return {files, title:"Fuel " + d, text:`Fuel: please review ${fmtD(d,{weekday:"short",month:"short",day:"numeric"})} (${d}). Everything is synced to ${S.syncRepo}: ${x.photos.length} photo${x.photos.length === 1 ? "" : "s"}${p.notes ? ", notes" : ""}.`};
   for (const ph of x.photos){ const rec = await idbGet("photos", ph.id); if (rec) files.push(new File([rec.small || rec.full], ph.id + ".jpg", {type:"image/jpeg"})); }
   const man = FIELDS.filter(f => isNum(p.manual[f])).map(f => ({weight:"Weight lb",bmi:"BMI",bodyFat:"Body fat %",muscle:"Muscle %",steps:"Steps",activeCal:"Move cal",exerciseMin:"Exercise min",distanceMi:"Distance mi",standHrs:"Stand hrs"})[f] + ": " + p.manual[f]);
   const text = `Food log for ${fmtD(d,{weekday:"short",month:"short",day:"numeric",year:"numeric"})} (${d}), ${files.length} photo${files.length === 1 ? "" : "s"}.\n` +
@@ -446,20 +451,104 @@ $("#failShare").onclick = () => shareDay(failDay || curDay || sel());
 $("#failShortcut").onclick = () => { $("#failSheet").hidden = true; viaShortcut(failDay || curDay || sel()); };
 $("#failClose").onclick = () => $("#failSheet").hidden = true;
 
-/* ---------- Pulse data (data/log.json) ---------- */
-async function refresh(){
+/* ---------- two-way sync with the PRIVATE repo (GitHub Contents API) ----------
+   Phone (IndexedDB) stays the source of truth. Each change queues an op; the queue is pushed (debounced) to
+   <repo>/days/<date>.json and <repo>/photos/<date>/<id>.jpg. Pulse writes <repo>/log.json; we read it back. */
+const K_Q = "fd-syncq", K_SHA = "fd-sha";
+let SQ = loadJSON(K_Q) || [], SHA = loadJSON(K_SHA) || {}, syncState = "off", syncMsg = "", syncAt = null, syncBusy = false, syncT = null, retryT = null, logSrc = null;
+const syncOn = () => !!(S.syncKey && S.syncRepo);
+const ghURL = p => "https://api.github.com/repos/" + S.syncRepo.trim().replace(/^https:\/\/github\.com\//, "").replace(/\/$/, "") + "/contents/" + p;
+const ghH = (extra) => Object.assign({"Authorization":"Bearer " + S.syncKey.trim(), "X-GitHub-Api-Version":"2022-11-28", "Accept":"application/vnd.github+json"}, extra || {});
+function saveQ(){ localStorage.setItem(K_Q, JSON.stringify(SQ)); localStorage.setItem(K_SHA, JSON.stringify(SHA)); }
+function syncQ(op){
+  const k = op.t + ":" + (op.id || op.date);
+  if (op.t === "photo") SQ = SQ.filter(o => !(o.t === "delphoto" && o.id === op.id));
+  if (op.t === "delphoto") SQ = SQ.filter(o => !(o.t === "photo" && o.id === op.id));
+  if (!SQ.some(o => o.t + ":" + (o.id || o.date) === k)) SQ.push(op);
+  saveQ(); if (syncOn()){ syncState = syncState === "error" ? "error" : "pending"; paintSync(); clearTimeout(syncT); syncT = setTimeout(runSync, 1500); }
+}
+function syncAll(){ Object.keys(DAYS).forEach(d => syncQ({t:"day", date:d})); PHOTOS.forEach(p => syncQ({t:"photo", id:p.id, date:p.date})); }
+const strB64 = s => b64(new Blob([s], {type:"text/plain"}));
+async function ghSha(path){ const r = await fetch(ghURL(path) + "?t=" + Date.now(), {headers:ghH(), cache:"no-store"}); if (r.status === 404) return null; if (!r.ok) throw httpErr(r); return (await r.json()).sha; }
+function httpErr(r){ const e = new Error("HTTP " + r.status); e.status = r.status; return e; }
+async function ghPut(path, b64data, msg, once){
+  const body = {message:msg, content:b64data}; if (SHA[path]) body.sha = SHA[path];
+  const r = await fetch(ghURL(path), {method:"PUT", headers:ghH({"Content-Type":"application/json"}), body:JSON.stringify(body)});
+  if (r.ok){ SHA[path] = (await r.json()).content.sha; return; }
+  if ((r.status === 409 || r.status === 422) && !once){ SHA[path] = await ghSha(path); if (!SHA[path]) delete SHA[path]; return ghPut(path, b64data, msg, true); }
+  throw httpErr(r);
+}
+async function ghDel(path, msg){
+  const sha = SHA[path] || await ghSha(path); if (!sha) return;
+  const r = await fetch(ghURL(path), {method:"DELETE", headers:ghH({"Content-Type":"application/json"}), body:JSON.stringify({message:msg, sha})});
+  if (!r.ok && r.status !== 404 && r.status !== 422) throw httpErr(r); delete SHA[path];
+}
+function dayDoc(date){
+  const p = DAYS[date] || {}, man = {}; FIELDS.forEach(f => man[f] = isNum((p.manual || {})[f]) ? +p.manual[f] : null);
+  return {schema:1, app:"fuel", version:APP_VERSION, date, updatedAt:p.updatedAt || nowLocalISO(), notes:p.notes || "", manual:man,
+    heightIn: isNum(S.heightIn) ? +S.heightIn : null, submittedAt:p.submittedAt || null, submittedVia:p.submittedVia || null,
+    photos: photosOn(date).map(x => ({id:x.id, takenAt:x.takenAt, path:"photos/" + date + "/" + x.id + ".jpg"}))};
+}
+async function runSync(){
+  if (!syncOn() || syncBusy) return; if (!SQ.length){ syncState = "ok"; paintSync(); return; }
+  if (navigator.onLine === false){ syncState = "offline"; paintSync(); return; }
+  syncBusy = true; syncState = "syncing"; paintSync(); clearTimeout(retryT);
   try{
-    const r = await fetch("data/log.json?t=" + Date.now(), {cache:"no-store"});
-    if (!r.ok) throw new Error(r.status);
-    LOG = await r.json(); LOG.days = LOG.days || {}; logAt = Date.now(); online = true;
-    localStorage.setItem(K_LOG, JSON.stringify({log:LOG, at:logAt}));
-  }catch(e){ online = false; }
+    while (SQ.length){
+      const op = SQ[0];
+      if (op.t === "day") await ghPut("days/" + op.date + ".json", await strB64(JSON.stringify(dayDoc(op.date), null, 1)), "Fuel app: day " + op.date);
+      else if (op.t === "photo"){ const rec = await idbGet("photos", op.id);
+        if (rec) await ghPut("photos/" + op.date + "/" + op.id + ".jpg", await b64(rec.full || rec.small), "Fuel app: photo " + op.id); }
+      else if (op.t === "delphoto") await ghDel("photos/" + op.date + "/" + op.id + ".jpg", "Fuel app: delete photo " + op.id);
+      SQ.shift(); saveQ();
+    }
+    syncState = "ok"; syncAt = Date.now(); syncMsg = "";
+  }catch(e){
+    if (e.status === 401 || e.status === 403){ syncState = "error"; syncMsg = "Sync key rejected (check it in Settings)"; }
+    else if (e.status === 404){ syncState = "error"; syncMsg = "Repo not found or key can't see it"; }
+    else { syncState = "offline"; syncMsg = ""; retryT = setTimeout(runSync, 60000); }
+  } finally { syncBusy = false; saveQ(); paintSync(); }
+  if (SQ.length && syncState === "ok") runSync();
+}
+function syncText(){
+  if (!syncOn()) return "Sync off · add a Sync key in Settings";
+  if (syncState === "syncing") return "Syncing… (" + SQ.length + ")";
+  if (syncState === "offline") return "Offline · " + SQ.length + " waiting, will retry";
+  if (syncState === "error") return syncMsg || "Sync error";
+  if (SQ.length) return SQ.length + " waiting to sync";
+  return "Synced" + (syncAt ? " " + new Date(syncAt).toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit"}) : "");
+}
+function paintSync(){
+  const d = $("#syncDot"); if (!d) return;
+  const st = !syncOn() ? (online === true ? "ok" : online === false ? "off" : "") : syncState === "ok" && !SQ.length ? "ok" : syncState === "error" ? "err" : syncState === "syncing" || syncState === "pending" ? "busy" : "off";
+  d.className = "syncdot " + st;
+  $("#foot").textContent = APP_VERSION + " · " + syncText() + (logAt ? " · Pulse data " + new Date(logAt).toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit"}) + (logSrc === "private" ? " (private)" : "") : "");
+  const ss = $("#syncStatus"); if (ss) ss.textContent = syncText();
+}
+
+/* ---------- Pulse data: private repo log.json (with Sync key), else public stub/cache ---------- */
+async function refresh(){
+  let got = null, keepCache = false;
+  if (syncOn()){
+    try{ const r = await fetch(ghURL("log.json") + "?t=" + Date.now(), {headers:ghH({"Accept":"application/vnd.github.raw+json"}), cache:"no-store"});
+      if (r.ok){ got = await r.json(); logSrc = "private"; }
+      else if (r.status === 401 || r.status === 403 || r.status === 404){ syncState = "error"; syncMsg = r.status === 404 ? "Repo not found or key can't see it" : "Sync key rejected (check it in Settings)"; }
+    }catch(e){}
+  }
+  if (!got){
+    try{ const r = await fetch("data/log.json?t=" + Date.now(), {cache:"no-store"});
+      if (r.ok){ const pub = await r.json(); if (!pub.moved || !(loadJSON(K_LOG) || {}).log) { got = pub; logSrc = "public"; } else keepCache = true; }
+    }catch(e){}
+  }
+  if (got){ LOG = got; LOG.days = LOG.days || {}; logAt = Date.now(); online = true; localStorage.setItem(K_LOG, JSON.stringify({log:LOG, at:logAt})); }
+  else online = keepCache ? true : false;
   render(); if (curDay) fillDayInputsKeepFocus();
+  if (syncOn()) runSync();
 }
 function fillDayInputsKeepFocus(){ const a = document.activeElement; if (a && (a.id === "notes" || (a.id || "").startsWith("m_"))) return; fillDayInputs(); }
 
 /* ---------- settings ---------- */
-const SF = ["webhookUrl","senderKey","authHeader","authScheme","sendMode","shortcutName","startWeight","startDate","goalWeight"];
+const SF = ["webhookUrl","senderKey","authHeader","authScheme","sendMode","shortcutName","startWeight","startDate","goalWeight","syncKey","syncRepo"];
 function openSettings(){
   SF.forEach(k => $("#s_" + k).value = S[k] ?? "");
   $("#s_heightFt").value = isNum(S.heightIn) ? Math.floor(S.heightIn / 12) : ""; $("#s_heightIn").value = isNum(S.heightIn) ? +(S.heightIn % 12).toFixed(1) : "";
@@ -473,10 +562,13 @@ function readSettings(){
   S.heightIn = (isNum(ft) || isNum(inch)) ? (+ft || 0) * 12 + (+inch || 0) : null; if (S.heightIn === 0) S.heightIn = null;
   ["cal","protein","fat","carbs"].forEach(k => { const a = $("#s_" + k + "0").value, b = $("#s_" + k + "1").value;
     if (isNum(a) && isNum(b)) S[k] = [Math.min(+a, +b), Math.max(+a, +b)]; });
-  saveSettings(); render();
+  const wasOn = readSettings.lastOn; saveSettings(); render(); readSettings.lastOn = syncOn();
+  if (syncOn() && !wasOn){ syncState = "pending"; syncAll(); refresh(); }   // key just added: backfill everything
 }
 $("#setSheet").addEventListener("change", readSettings);
-$("#setSheet").addEventListener("input", e => { if (e.target.id === "s_senderKey" || e.target.id === "s_webhookUrl") readSettings(); });
+$("#setSheet").addEventListener("input", e => { if (["s_senderKey","s_webhookUrl"].includes(e.target.id)) readSettings(); });
+$("#showSync").onclick = e => { e.preventDefault(); const k = $("#s_syncKey"); k.type = k.type === "password" ? "text" : "password"; $("#showSync").textContent = k.type === "password" ? "Show" : "Hide"; };
+$("#syncNow").onclick = e => { e.preventDefault(); readSettings(); if (!syncOn()){ toast("Paste the Sync key first"); return; } syncAll(); refresh(); toast("Syncing everything…"); };
 $("#showKey").onclick = e => { e.preventDefault(); const k = $("#s_senderKey"); k.type = k.type === "password" ? "text" : "password"; $("#showKey").textContent = k.type === "password" ? "Show" : "Hide"; };
 $("#settingsBtn").onclick = openSettings;
 $("#setClose").onclick = () => { readSettings(); $("#setSheet").hidden = true; };
@@ -495,6 +587,11 @@ document.addEventListener("click", e => {
 
 (async function init(){
   try{ await loadPhone(); }catch(e){ toast("Storage unavailable: " + e.message); }
+  // v1.5 migration: start/goal used to be built in; keep the numbers he already had on this phone
+  if (!isNum(S.startWeight) && LOG.start && isNum(LOG.start.lb)){ S.startWeight = LOG.start.lb; S.startDate = LOG.start.date; }
+  if (!isNum(S.goalWeight) && LOG.goal && isNum(LOG.goal.lb)) S.goalWeight = LOG.goal.lb;
+  saveSettings(); readSettings.lastOn = syncOn(); if (syncOn() && SQ.length) syncState = "pending";
+  window.__fuel = {syncAll, runSync, state:() => ({syncState, q:SQ.length, logSrc, msg:syncMsg})};   // for tests
   render(); refresh();
   try{ if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   if ("serviceWorker" in navigator){
@@ -504,5 +601,6 @@ document.addEventListener("click", e => {
   }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
   window.addEventListener("online", () => refresh());
+  window.addEventListener("offline", () => { if (syncOn()){ syncState = "offline"; paintSync(); } });
   setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 120000);
 })();
