@@ -1,7 +1,7 @@
 /* Fuel — food & weight tracker. Photos/notes/manual entries live on the phone (IndexedDB + localStorage).
    Pulse (health bot) reviews submitted days and writes its numbers to data/log.json, which this app merges in. */
 "use strict";
-const APP_VERSION = "fd-v1.5";
+const APP_VERSION = "fd-v1.6";
 const TZ = "America/Denver";
 const K_SET = "fd-settings", K_LOG = "fd-log";
 const $ = s => document.querySelector(s);
@@ -317,12 +317,14 @@ async function renderDay(){
 }
 
 let noteT = null, manT = null;
-$("#notes").addEventListener("input", () => { const d = curDay; phoneDay(d).notes = $("#notes").value; clearTimeout(noteT);
-  $("#noteSaved").textContent = "…"; noteT = setTimeout(async () => { await savePhoneDay(d); $("#noteSaved").textContent = "Saved"; prepShare(d); }, 400); });
-FIELDS.forEach(f => $("#m_" + f).addEventListener("input", e => { const d = curDay, v = e.target.value.trim().replace(/,/g, "");
+let lastEditDay = null;
+async function flushEdits(){ if (!lastEditDay || (!noteT && !manT)) return; clearTimeout(noteT); clearTimeout(manT); noteT = manT = null; await savePhoneDay(lastEditDay); }
+$("#notes").addEventListener("input", () => { const d = curDay; lastEditDay = d; phoneDay(d).notes = $("#notes").value; clearTimeout(noteT);
+  $("#noteSaved").textContent = "…"; noteT = setTimeout(async () => { noteT = null; await savePhoneDay(d); $("#noteSaved").textContent = "Saved"; prepShare(d); }, 400); });
+FIELDS.forEach(f => $("#m_" + f).addEventListener("input", e => { const d = curDay; lastEditDay = d; const v = e.target.value.trim().replace(/,/g, "");
   const man = phoneDay(d).manual; if (v === "" ) delete man[f]; else if (isNum(v)) man[f] = +v; else return;
   clearTimeout(manT); $("#manSaved").textContent = "…";
-  manT = setTimeout(async () => { await savePhoneDay(d); $("#manSaved").textContent = "Saved"; renderDay(); prepShare(d); if (f === "weight") fillBMIPlaceholder(); }, 400); }));
+  manT = setTimeout(async () => { manT = null; await savePhoneDay(d); $("#manSaved").textContent = "Saved"; renderDay(); prepShare(d); if (f === "weight") fillBMIPlaceholder(); }, 400); }));
 function fillBMIPlaceholder(){ const x = merged(curDay); const el = $("#m_bmi"); if (!el.value) el.placeholder = x.src.bmi === "auto" ? "auto " + fmt(x.m.bmi, 1) : (x.src.bmi === "pulse" ? "Pulse: " + x.m.bmi : ""); }
 $("#dayBack").onclick = closeDay;
 $("#dayPrev").onclick = () => openDay(addDays(curDay, -1));
@@ -520,6 +522,7 @@ function syncText(){
 }
 function paintSync(){
   const d = $("#syncDot"); if (!d) return;
+  const sb = $("#syncBtn"); if (sb && !syncNowBusy) sb.classList.toggle("err", syncOn() && syncState === "error");
   const st = !syncOn() ? (online === true ? "ok" : online === false ? "off" : "") : syncState === "ok" && !SQ.length ? "ok" : syncState === "error" ? "err" : syncState === "syncing" || syncState === "pending" ? "busy" : "off";
   d.className = "syncdot " + st;
   $("#foot").textContent = APP_VERSION + " · " + syncText() + (logAt ? " · Pulse data " + new Date(logAt).toLocaleTimeString("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit"}) + (logSrc === "private" ? " (private)" : "") : "");
@@ -544,7 +547,49 @@ async function refresh(){
   else online = keepCache ? true : false;
   render(); if (curDay) fillDayInputsKeepFocus();
   if (syncOn()) runSync();
+  return got ? logSrc : keepCache ? "cache" : null;
 }
+
+/* ---------- Sync now: header ↻ button and pull-to-refresh ---------- */
+let syncNowBusy = false;
+async function syncNow(){
+  if (syncNowBusy) return; syncNowBusy = true;
+  const btn = $("#syncBtn"); btn.classList.remove("done", "err"); btn.classList.add("spin");
+  const before = JSON.parse(JSON.stringify(LOG.days || {}));
+  try{
+    await flushEdits();
+    if (syncOn() && SQ.length){ clearTimeout(syncT); await runSync(); }
+    for (let i = 0; syncBusy && i < 120; i++) await new Promise(r => setTimeout(r, 250));   // let an in-flight push finish
+    const src = await refresh();
+    if (syncOn() && SQ.length && !syncBusy) await runSync();
+    btn.classList.remove("spin");
+    if (syncOn() && syncState === "error"){ btn.classList.add("err"); toast(syncMsg || "Sync error"); return; }
+    if (!src){ btn.classList.add("err"); toast("Offline · showing saved data" + (SQ.length ? `, ${SQ.length} waiting` : "")); setTimeout(() => btn.classList.remove("err"), 2500); return; }
+    const after = LOG.days || {}, changed = Object.keys(after).filter(d => JSON.stringify(after[d]) !== JSON.stringify(before[d])).sort();
+    const md = d => (+d.slice(5,7)) + "/" + (+d.slice(8));
+    let msg;
+    if (changed.length){ const d = changed[changed.length - 1], rev = (after[d] || {}).status === "reviewed";
+      msg = "Updated · " + (rev ? "Pulse reviewed " : "Pulse data for ") + md(d) + (changed.length > 1 ? ` (+${changed.length - 1} more)` : ""); }
+    else msg = "Up to date";
+    if (!syncOn()) msg += src === "cache" ? " · saved copy (add Sync key for Pulse's latest)" : "";
+    else if (SQ.length) msg += ` · ${SQ.length} still waiting to upload`;
+    btn.classList.add("done"); toast(msg); setTimeout(() => btn.classList.remove("done"), 1600);
+  } finally { btn.classList.remove("spin"); syncNowBusy = false; paintSync(); }
+}
+$("#syncBtn").onclick = syncNow;
+function pullToRefresh(el, scrollTop){
+  const ptr = $("#ptr"); let y0 = null, dy = 0;
+  el.addEventListener("touchstart", e => { if (syncNowBusy || scrollTop() > 0 || e.touches.length !== 1 || !$("#setSheet").hidden || !$("#addSheet").hidden) { y0 = null; return; } y0 = e.touches[0].clientY; dy = 0; }, {passive:true});
+  el.addEventListener("touchmove", e => { if (y0 === null) return; dy = e.touches[0].clientY - y0;
+    if (dy <= 0 || scrollTop() > 0){ ptr.style.opacity = 0; ptr.style.transform = "translateY(-60px)"; return; }
+    const k = Math.min(1, dy / 80); ptr.style.opacity = k; ptr.style.transform = `translateY(${Math.min(70, dy * 0.6) - 10}px) rotate(${dy * 3}deg)`; }, {passive:true});
+  el.addEventListener("touchend", async () => { if (y0 === null) return; const go = dy > 80; y0 = null;
+    if (!go){ ptr.style.opacity = 0; ptr.style.transform = "translateY(-60px)"; return; }
+    ptr.classList.add("go"); ptr.style.transform = "translateY(40px)"; ptr.style.opacity = 1;
+    await syncNow(); ptr.classList.remove("go"); ptr.style.opacity = 0; ptr.style.transform = "translateY(-60px)"; }, {passive:true});
+}
+pullToRefresh($("#dash"), () => window.scrollY || document.documentElement.scrollTop);
+pullToRefresh($("#day"), () => $("#day").scrollTop);
 function fillDayInputsKeepFocus(){ const a = document.activeElement; if (a && (a.id === "notes" || (a.id || "").startsWith("m_"))) return; fillDayInputs(); }
 
 /* ---------- settings ---------- */

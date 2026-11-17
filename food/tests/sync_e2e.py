@@ -54,7 +54,11 @@ try:
     check(u.returncode == 0 and "Pushed" in u.stdout, "pulse_update.py pushed review to private log.json " + u.stderr[-200:])
     pg.evaluate("refresh()"); pg.wait_for_function("document.querySelector('#photoGrid').innerText.includes('Sync test plate')", timeout=20000)
     check(True, "app shows Pulse's review read back from the private repo")
-    pg.click("#dayBack"); pg.click("#settingsBtn"); pg.wait_for_timeout(300)
+    pg.fill("#notes", "third edit"); pg.click("#dayBack"); pg.click("#syncBtn")
+    pg.wait_for_function("!document.querySelector('#toast').hidden && !document.querySelector('#syncBtn').classList.contains('spin')", timeout=30000)
+    tt = pg.inner_text("#toast"); check(("Up to date" in tt or "Updated" in tt) and pg.evaluate("window.__fuel.state().q") == 0, "↻ with key pushes pending edit + pulls private log.json -> " + tt)
+    check(gh_file(f"days/{TD}.json")["notes"] == "third edit", "↻ pushed the pending edit immediately")
+    pg.click("#settingsBtn"); pg.wait_for_timeout(300)
     pg.evaluate("document.querySelector('#s_syncKey').value='github_pat_EXAMPLE_not_real_0000000000'")   # never screenshot the real key
     pg.screenshot(path=SS + "/sync-settings.png")
     pg.evaluate("document.querySelector('#setSheet').hidden=true")

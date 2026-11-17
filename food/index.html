@@ -27,7 +27,8 @@
     </div>
     <div class="hdrBtns">
       <button id="hdrSend" class="sendPill" aria-label="Send today to Pulse"><b>Send to Pulse</b><small id="hdrSendSt">Not sent</small></button>
-      <button id="settingsBtn" class="iconbtn" aria-label="Settings"><span id="syncDot" class="syncdot" title="Pulse data"></span>
+      <button id="syncBtn" class="iconbtn syncBtn" aria-label="Sync now: send changes and get Pulse's latest"><svg class="ic-sync" viewBox="0 0 24 24" width="20" height="20"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="ic-ok" viewBox="0 0 24 24" width="20" height="20"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="syncDot" class="syncdot" title="Sync status"></span></button>
+      <button id="settingsBtn" class="iconbtn" aria-label="Settings">
         <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4L10.6 6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.2 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
       </button>
     </div>
@@ -219,6 +220,7 @@
     </div>
   </div>
 
+  <div id="ptr" class="ptr" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
   <div id="toast" class="toast" hidden></div>
 </div>
 <script src="app.js"></script>

@@ -200,6 +200,33 @@ try:
     pg.click("#hdrPrev"); pg.click("#hdrNext"); check(pg.inner_text("#hdrDate") == ys, "▶ steps forward")
     pg.click("#hdrDate"); pg.wait_for_timeout(300)
     check(pg.inner_text("#hdrDate") == ts and pg.inner_text("#calEaten") == "1,280", "tap date jumps back to today")
+    # fd-v1.6 sync button + pull to refresh (no key: public/test log)
+    hw = pg.evaluate("()=>({sw:document.documentElement.scrollWidth, right:document.querySelector('#settingsBtn').getBoundingClientRect().right, sync:document.querySelector('#syncBtn').getBoundingClientRect().width, h:document.querySelector('.hdr').getBoundingClientRect().height, pillL:document.querySelector('#hdrSend').getBoundingClientRect().left, dateR:document.querySelector('#hdrNext').getBoundingClientRect().right})")
+    check(hw["sw"] <= 390 and hw["right"] <= 390 and hw["h"] < 60 and hw["pillL"] > hw["dateR"], f"header with ↻ fits 390px on one line {hw}")
+    pg.click("#syncBtn"); pg.wait_for_function("!document.querySelector('#toast').hidden && !document.querySelector('#syncBtn').classList.contains('spin')", timeout=8000)
+    check("Up to date" in pg.inner_text("#toast"), "↻ with nothing new -> " + pg.inner_text("#toast"))
+    pg.wait_for_timeout(2700)
+    y10 = (datetime.date.fromisoformat(today) - datetime.timedelta(days=10)).isoformat(); yd = datetime.date.fromisoformat(y10)
+    subprocess.run([sys.executable, FOOD + "/tools/pulse_update.py", "--date", y10, "--add-entry", json.dumps({"food": "Late snack", "calories": 150, "protein": 10, "fat": 5, "carbs": 15}), "--no-git"], check=True, capture_output=True)
+    pg.click("#syncBtn"); pg.wait_for_function("!document.querySelector('#toast').hidden && document.querySelector('#toast').innerText.includes('Updated')", timeout=8000)
+    md = f"{yd.month}/{yd.day}"
+    check(f"Pulse reviewed {md}" in pg.inner_text("#toast") and pg.eval_on_selector("#syncBtn", "e=>e.classList.contains('done')"), "↻ pulls Pulse's change -> " + pg.inner_text("#toast"))
+    pg.screenshot(path=SS + "/sync-button.png", clip={"x": 0, "y": 0, "width": 390, "height": 64})
+    pg.wait_for_timeout(2700)
+    def pull(sel):
+        pg.evaluate("""(sel)=>{const el=document.querySelector(sel);const mk=(y)=>new Touch({identifier:1,target:el,clientX:200,clientY:y});
+          el.dispatchEvent(new TouchEvent('touchstart',{touches:[mk(100)],bubbles:true}));
+          for(const y of [130,170,210,240]) el.dispatchEvent(new TouchEvent('touchmove',{touches:[mk(y)],bubbles:true}));
+          el.dispatchEvent(new TouchEvent('touchend',{touches:[],bubbles:true}));}""", sel)
+    pg.evaluate("window.scrollTo(0,0)"); pull("#dash")
+    pg.wait_for_function("!document.querySelector('#toast').hidden", timeout=8000)
+    check("Up to date" in pg.inner_text("#toast") or "Updated" in pg.inner_text("#toast"), "pull-to-refresh on dashboard -> " + pg.inner_text("#toast"))
+    pg.wait_for_timeout(2700)
+    pg.evaluate(f"openDay('{y10}')"); pg.wait_for_timeout(300); pull("#day")
+    pg.wait_for_function("!document.querySelector('#toast').hidden", timeout=8000)
+    check("Up to date" in pg.inner_text("#toast"), "pull-to-refresh on day view -> " + pg.inner_text("#toast"))
+    check("Late snack" in pg.inner_text("#otherEntries"), "day view shows the pulled entry")
+    pg.click("#dayBack"); pg.click("#hdrDate"); yd = datetime.date.fromisoformat(y)
     pg.add_style_tag(content=".fab{display:none!important}")
     pg.screenshot(path=SS + "/dashboard.png", full_page=True)
     pg.click(f".wd[data-day='{y}']"); pg.wait_for_selector("#day:not([hidden])")
